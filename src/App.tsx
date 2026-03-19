@@ -32,7 +32,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 // Initialize Gemini
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+const genAI = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
 
 const SYSTEM_PROMPT = `Você é um Desenvolvedor Sênior Especialista em SAP CPI (Cloud Platform Integration) e Groovy. Sua missão é escrever ou ajustar scripts Groovy otimizados, limpos e seguros para fluxos de integração.
 
