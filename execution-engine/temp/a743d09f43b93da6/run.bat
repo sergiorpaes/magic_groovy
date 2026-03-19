@@ -1,0 +1,4 @@
+@echo off
+java -cp "C:\Users\s.r.silva\.gemini\antigravity\playground\groovy_magico\execution-engine\groovy-4.0.15.jar;C:\Users\s.r.silva\.gemini\antigravity\playground\groovy_magico\execution-engine\groovy-json-4.0.15.jar;C:\Users\s.r.silva\.gemini\antigravity\playground\groovy_magico\execution-engine\groovy-xml-4.0.15.jar;." org.codehaus.groovy.tools.FileSystemCompiler "com\sap\gateway\ip\core\customdev\util\Message.groovy"
+if %errorlevel% neq 0 exit /b %errorlevel%
+java -cp "C:\Users\s.r.silva\.gemini\antigravity\playground\groovy_magico\execution-engine\groovy-4.0.15.jar;C:\Users\s.r.silva\.gemini\antigravity\playground\groovy_magico\execution-engine\groovy-json-4.0.15.jar;C:\Users\s.r.silva\.gemini\antigravity\playground\groovy_magico\execution-engine\groovy-xml-4.0.15.jar;." groovy.ui.GroovyMain Runner.groovy

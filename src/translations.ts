@@ -4,24 +4,26 @@ export type Language = 'en' | 'pt' | 'es';
 export const translations = {
   en: {
     landing: {
-      title: "Groovy Scripts for SAP CPI",
-      highlight: "Expert AI Assistant.",
-      subtitle: "Collaborate with a Senior SAP CPI Developer. Our AI uses the C.O.A.C.H. framework to ensure your scripts are precise, optimized, and production-ready.",
-      getStarted: "Start Consulting",
+      title: "Magic",
+      highlight: "Groovy",
+      subtitle: "AI Specialist in Groovy Script",
+      description: "Intelligence that transforms logic into code. Magic Groovy combines SAP CPI architect expertise with the power of AI to deliver flawless scripts, eliminating manual errors and accelerating your delivery.",
+      getStarted: "Access Assistant",
       features: {
         groovy: "Groovy 2.4+",
         instant: "Instant Generation",
-        optimized: "CPI Optimized"
+        optimized: "Optimized for CPI"
       }
     },
     dashboard: {
-      title: "SAP CPI Groovy Architect",
+      title: "Magic Groovy",
       newScript: "New Script",
+      testScript: "Test Script",
       editorLabel: "Script Editor",
       credits: "Credits",
       recharge: "Recharge",
       promptLabel: "Prompt Input",
-      placeholder: "Describe your Groovy script requirements... (e.g., 'Generate a script to convert JSON to XML and add a custom header')",
+      placeholder: "Describe the target script... (e.g. JSON to XML)",
       generate: "Generate Script",
       generating: "Generating...",
       architecting: "Architecting Script...",
@@ -33,18 +35,26 @@ export const translations = {
         copy: "Copy to Clipboard",
         download: "Download .groovy"
       },
+      shortcuts: {
+        send: "to send",
+        newLine: "for new line"
+      },
       errors: {
         noCredits: "// Error: You have exhausted your credits. Please recharge to continue generating scripts.",
         failed: "// Error: Failed to generate script. Please check your API key."
-      }
+      },
+      confirmGenerateModel: "It looks like you haven't provided any input data (Payload, Headers, or Properties). Would you like the AI to generate a sample model based on your current script?",
+      generateSampleModel: "Generate Sample Input",
+      emptyInputTitle: "No Input Data"
     }
   },
   pt: {
     landing: {
-      title: "Scripts Groovy para SAP CPI",
-      highlight: "Assistente Especialista.",
-      subtitle: "Colabore com um Desenvolvedor Sênior SAP CPI. Nossa IA utiliza a metodologia C.O.A.C.H. para garantir que seus scripts sejam precisos, otimizados e prontos para produção.",
-      getStarted: "Começar Consultoria",
+      title: "Magic",
+      highlight: "Groovy",
+      subtitle: "IA Especialista em Groovy Script",
+      description: "A inteligência que transforma lógica em código. O Magic Groovy combina a expertise de um arquiteto SAP CPI com o poder da IA para entregar scripts impecáveis, eliminando erros manuais e acelerando suas entregas.",
+      getStarted: "Acessar Assistente",
       features: {
         groovy: "Groovy 2.4+",
         instant: "Geração Instantânea",
@@ -52,13 +62,14 @@ export const translations = {
       }
     },
     dashboard: {
-      title: "SAP CPI Groovy Architect",
+      title: "Magic Groovy",
       newScript: "Novo Script",
+      testScript: "Testar Script",
       editorLabel: "Editor de Script",
       credits: "Créditos",
       recharge: "Recarregar",
       promptLabel: "Entrada de Prompt",
-      placeholder: "Descreva seus requisitos de script Groovy... (ex: 'Gerar um script para converter JSON para XML e adicionar um cabeçalho personalizado')",
+      placeholder: "Descreva o script... (ex: JSON para XML)",
       generate: "Gerar Script",
       generating: "Gerando...",
       architecting: "Arquitetando Script...",
@@ -70,18 +81,26 @@ export const translations = {
         copy: "Copiar para Área de Transferência",
         download: "Baixar .groovy"
       },
+      shortcuts: {
+        send: "para enviar",
+        newLine: "para nova linha"
+      },
       errors: {
         noCredits: "// Erro: Você esgotou seus créditos. Por favor, recarregue para continuar gerando scripts.",
         failed: "// Erro: Falha ao gerar o script. Por favor, verifique sua chave de API."
-      }
+      },
+      confirmGenerateModel: "Parece que você não forneceu nenhum dado de entrada (Payload, Headers ou Properties). Gostaria que a IA gerasse um modelo de exemplo baseado no seu script atual?",
+      generateSampleModel: "Gerar Entrada de Exemplo",
+      emptyInputTitle: "Sem Dados de Entrada"
     }
   },
   es: {
     landing: {
-      title: "Scripts Groovy para SAP CPI",
-      highlight: "Asistente Experto.",
-      subtitle: "Colabore con un Desarrollador Senior SAP CPI. Nuestra IA utiliza la metodología C.O.A.C.H. para asegurar que sus scripts sean precisos, optimizados y listos para producción.",
-      getStarted: "Empezar Consultoría",
+      title: "Magic",
+      highlight: "Groovy",
+      subtitle: "IA Especialista en Groovy Script",
+      description: "La inteligencia que transforma la lógica en código. Magic Groovy combina la experiencia de un arquitecto SAP CPI con el poder de la IA para entregar scripts impecables, eliminando errores manuales y acelerando tus entregas.",
+      getStarted: "Acceder al Asistente",
       features: {
         groovy: "Groovy 2.4+",
         instant: "Generación Instantánea",
@@ -89,13 +108,14 @@ export const translations = {
       }
     },
     dashboard: {
-      title: "SAP CPI Groovy Architect",
+      title: "Magic Groovy",
       newScript: "Nuevo Script",
+      testScript: "Probar Script",
       editorLabel: "Editor de Script",
-      credits: "Créditos",
+      credits: "Recargas",
       recharge: "Recargar",
       promptLabel: "Entrada de Prompt",
-      placeholder: "Describa sus requisitos de script Groovy... (ej: 'Generar un script para convertir JSON a XML y agregar un encabezado personalizado')",
+      placeholder: "Describa el script... (ej: JSON a XML)",
       generate: "Generar Script",
       generating: "Generando...",
       architecting: "Arquitectando Script...",
@@ -107,10 +127,17 @@ export const translations = {
         copy: "Copiar al Portapapeles",
         download: "Descargar .groovy"
       },
+      shortcuts: {
+        send: "para enviar",
+        newLine: "para nueva línea"
+      },
       errors: {
         noCredits: "// Error: Has agotado tus créditos. Por favor, recarga para continuar generando scripts.",
         failed: "// Error: Falló la generación del script. Por favor, verifique su clave API."
-      }
+      },
+      confirmGenerateModel: "Parece que no ha proporcionado ningún dato de entrada (Payload, Headers o Properties). ¿Le gustaría que la IA generara un modelo de ejemplo basado en su script actual?",
+      generateSampleModel: "Generar Entrada de Ejemplo",
+      emptyInputTitle: "Sin Datos de Entrada"
     }
   }
 };

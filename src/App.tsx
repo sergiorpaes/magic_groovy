@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
@@ -21,19 +21,24 @@ import {
   Sparkles,
   Wand2,
   Globe,
-  MessageSquare
+  MessageSquare,
+  Brain
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import beautify from 'js-beautify';
 import { translations, Language } from './translations';
+import { ExecutionPanel } from './ExecutionPanel';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // Initialize Gemini
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
-const SYSTEM_PROMPT = `Você é um Desenvolvedor Sênior Especialista em SAP CPI (Cloud Platform Integration) e Groovy. Sua missão é escrever scripts Groovy otimizados, limpos e seguros para fluxos de integração.
+const SYSTEM_PROMPT = `Você é um Desenvolvedor Sênior Especialista em SAP CPI (Cloud Platform Integration) e Groovy. Sua missão é escrever ou ajustar scripts Groovy otimizados, limpos e seguros para fluxos de integração.
 
 Regra de Ouro:
-NUNCA gere o código Groovy imediatamente após o primeiro pedido do usuário. O desenvolvimento no SAP CPI exige precisão. Em vez disso, analise o pedido do usuário e faça até 3 perguntas de esclarecimento essenciais usando a metodologia C.O.A.C.H. adaptada para CPI.
+Priorize sempre o código fornecido em "SCRIPT ATUAL" (se houver). Se o usuário pedir um ajuste, modifique esse código em vez de criar um novo do zero, a menos que seja solicitado explicitamente o contrário.
+Antes de gerar a versão final, se houver dúvidas, use a metodologia C.O.A.C.H. para fazer até 3 perguntas de esclarecimento.
 
 Framework C.O.A.C.H. para SAP CPI:
 C - Contexto (Payload): O payload de entrada é XML, JSON, texto plano ou vazio? O script precisa ler algum Header ou Property específico que já vem do fluxo?
@@ -42,17 +47,21 @@ A - Arquitetura (Performance): O payload esperado é muito grande? (Isso define 
 C - Constraints (Restrições): Há regras específicas de tratamento de erros (try/catch)? Precisamos de bibliotecas específicas além do padrão com.sap.gateway.ip.core.customdev.util.Message?
 H - Handoff (Entrega): O usuário precisa apenas do método processData(Message message) ou também de métodos auxiliares? Quer o código comentado em português ou inglês?
 
-Instruções de Saída para as Perguntas:
-- Faça no máximo 3 perguntas focadas apenas no que está faltando para escrever um código perfeito.
-- Justifique brevemente o motivo de cada pergunta (para o usuário entender a importância).
-- Aguarde a resposta do usuário. Só então gere o código Groovy completo.
-- O código Groovy DEVE obrigatoriamente estar envolvido em blocos de código markdown com a tag 'groovy', exatamente assim: \`\`\`groovy [seu código aqui] \`\`\`.
+Instruções de Saída:
+- Se houver perguntas C.O.A.C.H., faça no máximo 3.
+- O código Groovy DEVE obrigatoriamente estar envolvido em blocos de código markdown com a tag 'groovy'.
+- Sempre forneça um payload de exemplo (XML ou JSON) compatível.
+- Se o script depende de ler Headers ou Properties, forneça os blocos 'json-headers' e 'json-properties'.
 
-Sempre inclua imports padrão quando gerar o código final:
-import com.sap.it.api.mapping.*
+Imports padrão obrigatórios:
+import com.sap.gateway.ip.core.customdev.util.Message
+import groovy.xml.XmlSlurper
+import groovy.xml.XmlParser
+import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
+import groovy.json.JsonBuilder
 import java.util.HashMap
 import java.util.Map
-import com.sap.gateway.ip.core.customdev.util.Message
 `;
 
 export default function App() {
@@ -64,11 +73,110 @@ export default function App() {
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<{role: 'user' | 'model', content: string}[]>([]);
   const [generatedCode, setGeneratedCode] = useState<string>('');
+  const [suggestedPayload, setSuggestedPayload] = useState<string | null>(null);
+  const [suggestedHeaders, setSuggestedHeaders] = useState<{key: string, value: string}[] | null>(null);
+  const [suggestedProperties, setSuggestedProperties] = useState<{key: string, value: string}[] | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [credits, setCredits] = useState(15);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [scriptName, setScriptName] = useState('GeneratedScript');
+  const [isEditingName, setIsEditingName] = useState(false);
+  
+  // Execution Panel State
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [executionResult, setExecutionResult] = useState<{
+    status: 'idle' | 'success' | 'error';
+    outputPayload: string;
+    outputHeaders: string;
+    outputProperties: string;
+    logs: string;
+    errorMessage?: string;
+  }>({
+    status: 'idle', outputPayload: '', outputHeaders: '', outputProperties: '', logs: ''
+  });
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Resize Handlers for the Workspace
+  const [leftPanelWidth, setLeftPanelWidth] = useState(50);
+  const [editorHeight, setEditorHeight] = useState(55); // 55% for editor, remaining for execution panel
+  const [chatInputHeight, setChatInputHeight] = useState(150); // height in pixels
+  const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingVertical, setIsDraggingVertical] = useState(false);
+  const [isDraggingChatInput, setIsDraggingChatInput] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleVerticalPointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    setIsDraggingVertical(true);
+  };
+
+  const handleChatInputPointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    setIsDraggingChatInput(true);
+  };
+
+  const handlePointerUp = useCallback(() => {
+    setIsDragging(false);
+    setIsDraggingVertical(false);
+    setIsDraggingChatInput(false);
+  }, []);
+
+  const handlePointerMove = useCallback((e: PointerEvent) => {
+    if (isDragging && containerRef.current) {
+      const container = containerRef.current.getBoundingClientRect();
+      let newWidth = ((e.clientX - container.left) / container.width) * 100;
+      
+      // Constrain the width between 20% and 80%
+      if (newWidth < 20) newWidth = 20;
+      if (newWidth > 80) newWidth = 80;
+      
+      setLeftPanelWidth(newWidth);
+    }
+
+    if (isDraggingVertical && editorContainerRef.current && containerRef.current) {
+      const container = containerRef.current.getBoundingClientRect();
+      let newHeight = ((e.clientY - container.top) / container.height) * 100;
+
+      // Constrain height between 20% and 80%
+      if (newHeight < 20) newHeight = 20;
+      if (newHeight > 80) newHeight = 80;
+
+      setEditorHeight(newHeight);
+    }
+
+    if (isDraggingChatInput && containerRef.current) {
+      const container = containerRef.current.getBoundingClientRect();
+      let newHeight = container.bottom - e.clientY;
+
+      // Constrain height between 100px and 400px
+      if (newHeight < 100) newHeight = 100;
+      if (newHeight > 400) newHeight = 400;
+
+      setChatInputHeight(newHeight);
+    }
+  }, [isDragging, isDraggingVertical, isDraggingChatInput]);
+
+  useEffect(() => {
+    if (isDragging || isDraggingVertical || isDraggingChatInput) {
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+    } else {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    }
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [isDragging, isDraggingVertical, isDraggingChatInput, handlePointerMove, handlePointerUp]);
 
   const t = translations[lang];
 
@@ -88,19 +196,29 @@ export default function App() {
       return;
     }
 
-    const newMessages = [...messages, { role: 'user' as const, content: prompt }];
-    setMessages(newMessages);
+    const currentPrompt = prompt;
     setPrompt('');
     setIsGenerating(true);
+
+    // Provide current script as context only for the API call
+    const contentWithContext = generatedCode.trim() 
+      ? `SCRIPT ATUAL:\n\`\`\`groovy\n${generatedCode}\n\`\`\`\n\nPERGUNTA/AGIUSTE:\n${currentPrompt}`
+      : currentPrompt;
+
+    const newMessages = [...messages, { role: 'user' as const, content: currentPrompt }];
+    setMessages(newMessages);
 
     // Create new abort controller
     abortControllerRef.current = new AbortController();
 
     try {
-      const history = newMessages.map(msg => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content }]
-      }));
+      const history = newMessages.map((msg, idx) => {
+        const isLast = idx === newMessages.length - 1;
+        return {
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: isLast ? contentWithContext : msg.content }]
+        };
+      });
 
       const result = await (genAI.models.generateContent as any)({
         model: "gemini-3-flash-preview",
@@ -113,15 +231,79 @@ export default function App() {
       const text = result.text;
       console.log("AI Response:", text);
       
-      // Check if response contains code (more robust regex, handles unclosed blocks)
-      // We look for the last occurrence of a code block start
-      const codeBlocks = [...text.matchAll(/```(?:groovy|javascript|java|json)?\n?([\s\S]*?)(?:```|$)/gi)];
-      if (codeBlocks.length > 0) {
-        // Take the last one as it's usually the final script
-        const lastBlock = codeBlocks[codeBlocks.length - 1];
-        const extractedCode = lastBlock[1].trim();
-        console.log("Extracted Code:", extractedCode);
-        setGeneratedCode(extractedCode);
+      // 1. Extract the Groovy script
+      // First try to find an explicit groovy block
+      const groovyMatch = text.match(/```(?:groovy)\s*\n([\s\S]*?)```/i);
+      if (groovyMatch) {
+         setGeneratedCode(groovyMatch[1].trim());
+      } else {
+        // Fallback: finding the first block that is NOT xml, json, html
+        const anyBlockMatches = [...text.matchAll(/```([a-z]*)\s*\n([\s\S]*?)```/gi)];
+        const potentialScripts = anyBlockMatches.filter(m => {
+           const lang = m[1].toLowerCase();
+           return !['xml', 'json', 'html', 'yaml', 'yml'].includes(lang);
+        });
+        
+        if (potentialScripts.length > 0) {
+           setGeneratedCode(potentialScripts[0][2].trim());
+        } else {
+          // Fallback for missing closing backticks
+          const fallbackMatch = text.match(/```(?:groovy|java|javascript)?\s*\n([\s\S]*)$/i);
+          if (fallbackMatch) {
+              setGeneratedCode(fallbackMatch[1].replace(/```\s*$/, '').trim());
+          }
+        }
+      }
+
+      // 2. Extract the Payload (XML or JSON)
+      const payloadBlocks = [...text.matchAll(/```(?:xml|json)\s*\n([\s\S]*?)```/gi)];
+      if (payloadBlocks.length > 0) {
+        // Take the FIRST payload block found, as it's typically the input example
+        const firstPayloadBlock = payloadBlocks[0];
+        const extractedPayload = firstPayloadBlock[1].trim();
+        console.log("Extracted Payload:", extractedPayload);
+        
+        // ONLY update suggested payload if it's the INITIAL script generation (first user prompt)
+        // or if it's an explicit request to generate a sample model
+        const isModelRequest = currentPrompt.includes('Analise o script Groovy abaixo e gere um payload') || 
+                               currentPrompt.includes('Analice el siguiente script de Groovy y genere un payload') || 
+                               currentPrompt.includes('Analyze the Groovy script below and generate a sample payload');
+
+        if (newMessages.length === 1 || isModelRequest) {
+          setSuggestedPayload(extractedPayload);
+        }
+      } else {
+        // We don't clear suggestedPayload because we want to keep the one from the first turn if valid
+      }
+
+      // 3. Extract the Headers (json-headers)
+      const headersBlocks = [...text.matchAll(/```json-headers\s*\n([\s\S]*?)```/gi)];
+      const isModelRequestForOthers = currentPrompt.includes('Analise o script Groovy abaixo e gere um payload') || 
+                                      currentPrompt.includes('Analice el siguiente script de Groovy y genere un payload') || 
+                                      currentPrompt.includes('Analyze the Groovy script below and generate a sample payload');
+                                      
+      if (headersBlocks.length > 0 && (newMessages.length === 1 || isModelRequestForOthers)) {
+        try {
+          const parsed = JSON.parse(headersBlocks[0][1].trim());
+          const arr = Object.entries(parsed).map(([k, v]) => ({ key: k, value: String(v) }));
+          setSuggestedHeaders(arr);
+        } catch (e) {
+          console.error("Failed to parse headers", e);
+          setSuggestedHeaders(null);
+        }
+      }
+
+      // 4. Extract the Properties (json-properties)
+      const propsBlocks = [...text.matchAll(/```json-properties\s*\n([\s\S]*?)```/gi)];
+      if (propsBlocks.length > 0 && (newMessages.length === 1 || isModelRequestForOthers)) {
+        try {
+          const parsed = JSON.parse(propsBlocks[0][1].trim());
+          const arr = Object.entries(parsed).map(([k, v]) => ({ key: k, value: String(v) }));
+          setSuggestedProperties(arr);
+        } catch (e) {
+          console.error("Failed to parse properties", e);
+          setSuggestedProperties(null);
+        }
       }
       
       setMessages(prev => [...prev, { role: 'model', content: text }]);
@@ -153,6 +335,47 @@ export default function App() {
     }
   };
 
+  const handleFixError = (errorMessage: string, payload: string) => {
+    const errorPrompt = 
+      (lang === 'pt' ? 'Preciso de ajuda para corrigir um erro neste script Groovy.' : lang === 'es' ? 'Necesito ayuda para corregir un error en este script Groovy.' : 'I need help fixing an error in this Groovy script.') + '\\n\\n' +
+      (lang === 'pt' ? '**Mensagem de Erro:**' : lang === 'es' ? '**Mensaje de Error:**' : '**Error Message:**') + '\\n' +
+      '\`\`\`\\n' +
+      errorMessage + '\\n' +
+      '\`\`\`\\n\\n' +
+      (lang === 'pt' ? '**Payload de Entrada Utilizado:**' : lang === 'es' ? '**Input Payload Used:**' : '**Input Payload Used:**') + '\\n' +
+      '\`\`\`xml\\n' +
+      payload + '\\n' +
+      '\`\`\`\\n\\n' +
+      (lang === 'pt' ? '**Script Atual:**' : lang === 'es' ? '**Current Script:**' : '**Current Script:**') + '\\n' +
+      '\`\`\`groovy\\n' +
+      generatedCode + '\\n' +
+      '\`\`\`\\n\\n' +
+      (lang === 'pt' ? 'Por favor, analise o erro, explique o que deu errado e forneça o script Groovy corrigido em um bloco markdown.' : lang === 'es' ? 'Por favor, analice el error, explique qué salió mal y proporcione el script Groovy corregido en un bloque markdown.' : 'Please analyze the error, explain what went wrong, and provide the corrected Groovy script in a markdown block.');
+
+
+
+    setPrompt(errorPrompt);
+    // Use setTimeout to ensure state is updated before generating
+    setTimeout(() => {
+        const btn = document.getElementById('generate-btn');
+        if (btn) btn.click();
+    }, 50);
+  };
+
+  const handleGenerateModel = (script: string) => {
+    const modelPrompt = 
+      (lang === 'pt' ? 'Analise o script Groovy abaixo e gere um payload de exemplo (XML ou JSON), além de quaisquer headers e properties necessários para que ele possa ser testado na execução local.' : 
+       lang === 'es' ? 'Analice el siguiente script de Groovy y genere un payload de ejemplo (XML o JSON), además de los encabezados y propiedades necesarios para que pueda probarse localmente.' :
+       'Analyze the Groovy script below and generate a sample payload (XML or JSON), as well as any necessary headers and properties so it can be tested locally.') + '\n\n' +
+      '```groovy\n' + script + '\n```';
+    
+    setPrompt(modelPrompt);
+    setTimeout(() => {
+        const btn = document.getElementById('generate-btn');
+        if (btn) btn.click();
+    }, 50);
+  };
+
   const resetConversation = () => {
     setMessages([]);
     setGeneratedCode('');
@@ -169,9 +392,10 @@ export default function App() {
     const element = document.createElement("a");
     const file = new Blob([generatedCode], {type: 'text/plain'});
     element.href = URL.createObjectURL(file);
-    element.download = "script.groovy";
+    element.download = `${scriptName}.groovy`;
     document.body.appendChild(element);
     element.click();
+    document.body.removeChild(element);
   };
 
   const formatScript = () => {
@@ -202,6 +426,71 @@ export default function App() {
     return Prism.highlight(code, Prism.languages.groovy, 'groovy');
   };
 
+  const handleRunTest = async (payload: string, headers: {key: string, value: string}[], properties: {key: string, value: string}[]) => {
+    setIsExecuting(true);
+    setExecutionResult(prev => ({ ...prev, status: 'idle', logs: 'Executing...', errorMessage: '' }));
+
+    // Convert arrays back to objects for the API
+    const headersObj = headers.reduce((acc, curr) => {
+      if (curr.key.trim()) acc[curr.key] = curr.value;
+      return acc;
+    }, {} as Record<string, string>);
+
+    const propertiesObj = properties.reduce((acc, curr) => {
+      if (curr.key.trim()) acc[curr.key] = curr.value;
+      return acc;
+    }, {} as Record<string, string>);
+
+    try {
+      const response = await fetch('http://localhost:3001/api/execute', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          script: generatedCode,
+          payload,
+          headers: JSON.stringify(headersObj),
+          properties: JSON.stringify(propertiesObj),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'error' || response.status !== 200) {
+         setExecutionResult({
+            status: 'error',
+            outputPayload: '',
+            outputHeaders: '',
+            outputProperties: '',
+            logs: data.logs || '',
+            errorMessage: data.errorMessage || data.error || 'Unknown error occurred during execution'
+         });
+      } else {
+         // Success
+         setExecutionResult({
+            status: 'success',
+            outputPayload: data.body || '',
+            outputHeaders: JSON.stringify(data.headers || {}, null, 2),
+            outputProperties: JSON.stringify(data.properties || {}, null, 2),
+            logs: data.logs || '',
+         });
+      }
+
+    } catch (error: any) {
+      setExecutionResult({
+        status: 'error',
+        outputPayload: '',
+        outputHeaders: '',
+        outputProperties: '',
+        logs: '',
+        errorMessage: 'Failed to connect to Local Execution Engine.\nIs the Node.js server running on port 3001?\n\nError: ' + error.message
+      });
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+
   const LanguageSwitcher = () => (
     <div className="flex items-center space-x-2 bg-vscode-panel border border-vscode-border rounded-lg p-1">
       <Globe className="w-4 h-4 text-vscode-text/40 ml-2" />
@@ -223,50 +512,65 @@ export default function App() {
 
   if (view === 'landing') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-vscode-bg relative">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#0D1117] relative overflow-hidden">
+        {/* Background Ambient Glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-vscode-blue/5 rounded-full blur-[120px] pointer-events-none" />
+        
         <div className="absolute top-6 right-6">
           <LanguageSwitcher />
         </div>
+        
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-2xl text-center space-y-8"
+          className="max-w-3xl text-center space-y-10 relative z-10"
         >
+          {/* Logo Section */}
           <div className="flex justify-center">
-            <div className="p-4 bg-vscode-blue/10 rounded-2xl border border-vscode-blue/20">
-              <Sparkles className="w-12 h-12 text-vscode-blue" />
+            <div className="w-32 h-32 md:w-48 md:h-48 rounded-full overflow-hidden flex items-center justify-center bg-transparent shadow-2xl shadow-blue-500/10">
+              <img 
+                src="/magic_groovy_logo.png" 
+                alt="Magic Groovy Logo" 
+                className="w-full h-full object-cover" 
+              />
             </div>
           </div>
           
-          <h1 className="text-5xl font-bold tracking-tight text-vscode-text">
-            {t.landing.title}, <span className="text-vscode-blue">{t.landing.highlight}</span>
-          </h1>
+          {/* Title Section */}
+          <div className="space-y-4">
+            <h1 className="text-6xl md:text-7xl font-bold tracking-tight">
+              <span className="text-gradient-gold">{t.landing.title}</span>{' '}
+              <span className="text-gradient-blue">{t.landing.highlight}</span>
+            </h1>
+            <p className="text-2xl md:text-3xl font-medium text-white/90">
+              {t.landing.subtitle}
+            </p>
+          </div>
           
-          <p className="text-xl text-vscode-text/80 leading-relaxed">
-            {t.landing.subtitle}
+          {/* Description Section */}
+          <p className="max-w-2xl mx-auto text-base md:text-lg text-vscode-text/60 leading-relaxed font-light">
+            {(t.landing as any).description}
           </p>
           
-          <div className="pt-8">
+          {/* Action Section */}
+          <div className="pt-6">
             <button 
               onClick={() => setView('dashboard')}
-              className="px-8 py-4 bg-vscode-blue hover:bg-vscode-blue/90 text-white font-semibold rounded-lg transition-all flex items-center gap-2 mx-auto group shadow-lg shadow-vscode-blue/20"
+              className="btn-premium-glow px-10 py-4 text-lg flex items-center gap-3 mx-auto group"
             >
               {t.landing.getStarted}
               <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
 
-          <div className="pt-16 grid grid-cols-3 gap-8 text-sm text-vscode-text/40">
-            <div className="flex flex-col items-center gap-2">
-              <Code2 className="w-5 h-5" />
-              <span>{t.landing.features.groovy}</span>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <Zap className="w-5 h-5" />
+          {/* Features Section */}
+          <div className="pt-20 grid grid-cols-2 gap-12 text-[13px] md:text-sm font-medium text-vscode-text/40 max-w-sm mx-auto">
+            <div className="flex flex-col items-center gap-3 group transition-colors hover:text-vscode-text/70">
+              <Zap className="w-6 h-6" />
               <span>{t.landing.features.instant}</span>
             </div>
-            <div className="flex flex-col items-center gap-2">
-              <Terminal className="w-5 h-5" />
+            <div className="flex flex-col items-center gap-3 group transition-colors hover:text-vscode-text/70">
+              <Terminal className="w-6 h-6" />
               <span>{t.landing.features.optimized}</span>
             </div>
           </div>
@@ -280,7 +584,7 @@ export default function App() {
       {/* Header */}
       <header className="h-16 border-b border-vscode-border flex items-center justify-between px-6 bg-vscode-panel shrink-0">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('landing')}>
-          <Sparkles className="w-6 h-6 text-vscode-blue" />
+          <img src="/magic_groovy_logo.png" alt="Logo" className="w-7 h-7 rounded-full object-cover" />
           <span className="font-bold tracking-tight text-vscode-text">{t.dashboard.title}</span>
         </div>
         
@@ -305,29 +609,41 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <main className="flex-1 flex flex-col md:flex-row overflow-hidden" ref={containerRef}>
         {/* Main Content Area */}
-        <section className="flex-1 flex overflow-hidden">
+        <section 
+          className="flex-1 flex overflow-hidden relative"
+          style={{ userSelect: (isDragging || isDraggingVertical || isDraggingChatInput) ? 'none' : 'auto' }}
+        >
           {/* Left: Chat Column */}
-          <div className="w-1/2 flex flex-col border-r border-vscode-border bg-vscode-bg/30">
+          <div 
+             className="flex flex-col border-r border-vscode-border bg-vscode-bg/30"
+             style={{ width: `${leftPanelWidth}%` }}
+          >
             <div className="h-10 border-b border-vscode-border flex items-center px-4 bg-vscode-panel shrink-0">
               <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-vscode-text/40">
                 <MessageSquare className="w-3 h-3" />
-                Consultation
               </div>
-            </div>
-
-            {/* Chat History */}
+            </div>            {/* Chat History */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
               {messages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[90%] p-3 rounded-lg text-sm ${
+                <div key={idx} className={`flex message-container gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center border shadow-sm ${
                     msg.role === 'user' 
-                      ? 'bg-vscode-blue text-white rounded-tr-none shadow-lg shadow-vscode-blue/10' 
-                      : 'bg-vscode-panel border border-vscode-border text-vscode-text rounded-tl-none'
+                      ? 'bg-vscode-blue/10 border-vscode-blue/20 text-vscode-blue' 
+                      : 'bg-vscode-panel border-vscode-border text-vscode-text/40'
                   }`}>
-                    <div className="whitespace-pre-wrap">
-                      {msg.content.replace(/```(?:groovy|javascript|java|json)?\n?([\s\S]*?)(?:```|$)/gi, '').trim()}
+                    {msg.role === 'user' ? <MessageSquare className="w-4 h-4" /> : <Brain className="w-4 h-4" />}
+                  </div>
+                  <div className={`max-w-[85%] p-3 rounded-xl text-sm ${
+                    msg.role === 'user' 
+                      ? 'chat-bubble-user' 
+                      : 'chat-bubble-bot'
+                  }`}>
+                    <div className="prose prose-invert max-w-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.content.replace(/```(?:groovy|javascript|java|json)?\n?([\s\S]*?)(?:```|$)/gi, '').trim()}
+                      </ReactMarkdown>
                     </div>
                     {msg.content.match(/```(?:groovy|javascript|java|json)?/i) && msg.role === 'model' && (
                       <div className="mt-2 pt-2 border-t border-vscode-border/30 text-[10px] opacity-50 italic">
@@ -349,18 +665,29 @@ export default function App() {
               <div ref={chatEndRef} />
             </div>
 
+            {/* Draggable Vertical Handle for Chat Input */}
+            <div 
+               className="h-1 bg-vscode-border hover:bg-vscode-blue transition-colors cursor-row-resize active:bg-vscode-blue shrink-0 relative flex items-center justify-center -mb-[1px] z-10"
+               onPointerDown={handleChatInputPointerDown}
+            >
+               <div className="h-0.5 w-8 bg-vscode-text/20 rounded" />
+            </div>
+
             {/* Chat Input Area */}
-            <div className="p-4 bg-vscode-panel border-t border-vscode-border">
-              <div className="relative">
+            <div 
+              className="p-4 bg-vscode-panel border-t border-vscode-border flex flex-col shrink-0"
+              style={{ height: `${chatInputHeight}px` }}
+            >
+              <div className="relative flex-1 flex flex-col">
                 <textarea 
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={t.dashboard.placeholder}
-                  className="w-full bg-vscode-bg border border-vscode-border rounded-xl pl-4 pr-14 py-3 text-sm text-vscode-text placeholder:text-vscode-text/20 focus:outline-none focus:border-vscode-blue transition-all resize-none custom-scrollbar max-h-32 shadow-inner"
-                  rows={prompt.split('\n').length > 3 ? 3 : prompt.split('\n').length || 1}
+                  className="w-full flex-1 bg-vscode-bg border border-vscode-border rounded-xl pl-4 pr-14 py-3 text-sm text-vscode-text placeholder:text-vscode-text/20 focus:outline-none focus:border-vscode-blue transition-all resize-y custom-scrollbar shadow-inner min-h-[60px]"
                 />
                 <button 
+                  id="generate-btn"
                   onClick={isGenerating ? handleStop : handleGenerate}
                   disabled={(!isGenerating && (!prompt.trim() || credits <= 0))}
                   className={`absolute right-2 bottom-2 p-2.5 rounded-lg transition-all shadow-lg ${
@@ -374,86 +701,154 @@ export default function App() {
                 </button>
               </div>
               <div className="mt-2 text-[10px] text-vscode-text/30 text-center flex items-center justify-center gap-4">
-                <span><kbd className="px-1 py-0.5 bg-vscode-bg border border-vscode-border rounded text-vscode-blue">Enter</kbd> to send</span>
-                <span><kbd className="px-1 py-0.5 bg-vscode-bg border border-vscode-border rounded text-vscode-blue">Shift+Enter</kbd> for new line</span>
+                <span><kbd className="px-1 py-0.5 bg-vscode-bg border border-vscode-border rounded text-vscode-blue">Enter</kbd> {t.dashboard.shortcuts.send}</span>
+                <span><kbd className="px-1 py-0.5 bg-vscode-bg border border-vscode-border rounded text-vscode-blue">Shift+Enter</kbd> {t.dashboard.shortcuts.newLine}</span>
               </div>
             </div>
           </div>
 
+          {/* Draggable Handle */}
+          <div 
+             className="w-1.5 bg-vscode-border hover:bg-vscode-blue transition-colors cursor-col-resize active:bg-vscode-blue shrink-0 relative flex items-center justify-center -ml-[1px]"
+             onPointerDown={handlePointerDown}
+          >
+             <div className="w-0.5 h-8 bg-vscode-text/20 rounded z-10" />
+          </div>
+
           {/* Right: Editor Column */}
-          <div className="flex-1 flex flex-col bg-vscode-bg overflow-hidden">
-            <div className="h-10 border-b border-vscode-border flex items-center justify-between px-4 bg-vscode-panel shrink-0">
-              <div className="flex items-center gap-2 text-[11px] font-medium text-vscode-blue">
-                <Code2 className="w-3 h-3" />
-                <span className="text-vscode-text font-semibold">GeneratedScript.groovy</span>
+          <div 
+            className="flex flex-col bg-vscode-bg overflow-hidden"
+            style={{ width: `${100 - leftPanelWidth}%` }}
+          >
+            <div 
+              ref={editorContainerRef}
+              className="flex flex-col bg-vscode-bg overflow-hidden"
+              style={{ height: `${editorHeight}%` }}
+            >
+              <div className="h-10 border-b border-vscode-border flex items-center justify-between px-4 bg-vscode-panel shrink-0">
+                <div className="flex items-center gap-2 text-[11px] font-medium text-vscode-blue">
+                  <Code2 className="w-3.5 h-3.5" />
+                  <div className="flex items-center">
+                    {isEditingName ? (
+                      <input
+                        autoFocus
+                        type="text"
+                        value={scriptName}
+                        onChange={(e) => setScriptName(e.target.value)}
+                        onBlur={() => setIsEditingName(false)}
+                        onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
+                        className="bg-vscode-bg border border-vscode-blue/50 rounded px-1.5 py-0.5 text-vscode-text focus:outline-none w-40"
+                      />
+                    ) : (
+                      <span 
+                        onClick={() => setIsEditingName(true)}
+                        className="text-vscode-text font-semibold cursor-pointer hover:bg-white/5 px-1.5 py-0.5 rounded transition-colors flex items-center gap-1.5"
+                      >
+                        {scriptName}
+                        <span className="opacity-30 font-normal">.groovy</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={formatScript}
+                    disabled={!generatedCode}
+                    className="p-1.5 hover:bg-vscode-bg rounded transition-colors text-vscode-text/60 hover:text-vscode-blue disabled:opacity-30 flex items-center gap-1.5 text-[10px] font-bold uppercase"
+                    title={t.dashboard.tooltips.format}
+                  >
+                    <Wand2 className="w-3.5 h-3.5" />
+                    Format
+                  </button>
+                  <div className="w-px h-4 bg-vscode-border mx-1" />
+                  <button 
+                    onClick={copyToClipboard}
+                    disabled={!generatedCode}
+                    className="p-1.5 hover:bg-vscode-bg rounded transition-colors text-vscode-text/60 hover:text-vscode-blue disabled:opacity-30 flex items-center gap-1.5 text-[10px] font-bold uppercase relative"
+                    title={t.dashboard.tooltips.copy}
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    {copySuccess ? 'Copied!' : 'Copy'}
+                  </button>
+                  <button 
+                    onClick={downloadScript}
+                    disabled={!generatedCode}
+                    className="p-1.5 hover:bg-vscode-bg rounded transition-colors text-vscode-text/60 hover:text-vscode-blue disabled:opacity-30 flex items-center gap-1.5 text-[10px] font-bold uppercase"
+                    title={t.dashboard.tooltips.download}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Save
+                  </button>
+                </div>
               </div>
               
-              <div className="flex items-center gap-1">
-                <button 
-                  onClick={formatScript}
-                  disabled={!generatedCode}
-                  className="p-1.5 hover:bg-vscode-bg rounded transition-colors text-vscode-text/60 hover:text-vscode-blue disabled:opacity-30 flex items-center gap-1.5 text-[10px] font-bold uppercase"
-                  title={t.dashboard.tooltips.format}
-                >
-                  <Wand2 className="w-3.5 h-3.5" />
-                  Format
-                </button>
-                <div className="w-px h-4 bg-vscode-border mx-1" />
-                <button 
-                  onClick={copyToClipboard}
-                  disabled={!generatedCode}
-                  className="p-1.5 hover:bg-vscode-bg rounded transition-colors text-vscode-text/60 hover:text-vscode-blue disabled:opacity-30 flex items-center gap-1.5 text-[10px] font-bold uppercase relative"
-                  title={t.dashboard.tooltips.copy}
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  {copySuccess ? 'Copied!' : 'Copy'}
-                </button>
-                <button 
-                  onClick={downloadScript}
-                  disabled={!generatedCode}
-                  className="p-1.5 hover:bg-vscode-bg rounded transition-colors text-vscode-text/60 hover:text-vscode-blue disabled:opacity-30 flex items-center gap-1.5 text-[10px] font-bold uppercase"
-                  title={t.dashboard.tooltips.download}
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Save
-                </button>
+              
+              <div className="flex-1 overflow-auto custom-scrollbar relative bg-[#1e1e1e]">
+              <div className="flex min-h-full relative">
+                {!generatedCode && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-vscode-text/20 space-y-4 pointer-events-none z-0">
+                    <Code2 className="w-12 h-12 opacity-10" />
+                    <p className="text-sm tracking-wide uppercase font-bold opacity-30">{t.dashboard.emptyState}</p>
+                    <p className="text-[10px] opacity-20">{lang === 'pt' ? '(Cole seu script aqui para começar)' : lang === 'es' ? '(Pegue su script aquí para comenzar)' : '(Paste your script here to start)'}</p>
+                  </div>
+                )}
+                
+                {/* Line Numbers */}
+                <div className="w-12 bg-[#1e1e1e] border-r border-vscode-border/30 text-right pr-3 pt-5 select-none text-vscode-text/20 font-mono text-xs leading-[21px] z-10">
+                  {(generatedCode || '').split('\n').map((_, i) => (
+                    <div key={i}>{i + 1}</div>
+                  ))}
+                </div>
+                
+                <div className="flex-1 z-10">
+                  <Editor
+                    value={generatedCode}
+                    onValueChange={code => setGeneratedCode(code)}
+                    highlight={code => highlightWithPrism(code)}
+                    padding={20}
+                    className="font-mono text-sm text-[#d4d4d4]"
+                    style={{
+                      fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                      fontSize: 13,
+                      backgroundColor: 'transparent',
+                      minHeight: '100%',
+                      lineHeight: '21px'
+                    }}
+                    textareaClassName="focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
-            
-            <div className="flex-1 overflow-auto custom-scrollbar relative bg-[#1e1e1e]">
-              {generatedCode ? (
-                <div className="flex min-h-full">
-                  {/* Line Numbers */}
-                  <div className="w-12 bg-[#1e1e1e] border-r border-vscode-border/30 text-right pr-3 pt-5 select-none text-vscode-text/20 font-mono text-xs leading-[21px]">
-                    {generatedCode.split('\n').map((_, i) => (
-                      <div key={i}>{i + 1}</div>
-                    ))}
-                  </div>
-                  <div className="flex-1">
-                    <Editor
-                      value={generatedCode}
-                      onValueChange={code => setGeneratedCode(code)}
-                      highlight={code => highlightWithPrism(code)}
-                      padding={20}
-                      className="font-mono text-sm text-[#d4d4d4]"
-                      style={{
-                        fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                        fontSize: 13,
-                        backgroundColor: 'transparent',
-                        minHeight: '100%',
-                        lineHeight: '21px'
-                      }}
-                      textareaClassName="focus:outline-none"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-vscode-text/20 space-y-4">
-                  <Code2 className="w-12 h-12 opacity-10" />
-                  <p className="text-sm tracking-wide uppercase font-bold opacity-30">{t.dashboard.emptyState}</p>
-                </div>
-              )}
             </div>
+
+            {/* Draggable Vertical Handle */}
+            <div 
+               className="h-1.5 bg-vscode-border hover:bg-vscode-blue transition-colors cursor-row-resize active:bg-vscode-blue shrink-0 relative flex items-center justify-center"
+               onPointerDown={handleVerticalPointerDown}
+            >
+               <div className="h-0.5 w-8 bg-vscode-text/20 rounded z-10" />
+            </div>
+
+            {/* Execution Environment Panel (Bottom Half) */}
+            <div 
+              className="flex-1 border-t border-vscode-border bg-[#1e1e1e] overflow-hidden"
+              style={{ minHeight: '100px' }}
+            >
+                <ExecutionPanel 
+                  script={generatedCode}
+                  suggestedPayload={suggestedPayload}
+                  suggestedHeaders={suggestedHeaders}
+                  suggestedProperties={suggestedProperties}
+                  isExecuting={isExecuting}
+                  result={executionResult}
+                  onRunTest={handleRunTest}
+                  onFixError={handleFixError}
+                  onGenerateModel={handleGenerateModel}
+                  t={t.dashboard}
+                />
+            </div>
+
           </div>
         </section>
       </main>
