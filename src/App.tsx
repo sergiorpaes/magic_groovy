@@ -232,26 +232,25 @@ export default function App() {
       console.log("AI Response:", text);
       
       // 1. Extract the Groovy script
-      // First try to find an explicit groovy block
+      const isModelRequest = currentPrompt.includes('Analise o script Groovy abaixo e gere um payload') || 
+                             currentPrompt.includes('Analice el siguiente script de Groovy y genere un payload') || 
+                             currentPrompt.includes('Analyze the Groovy script below and generate a sample payload');
+
       const groovyMatch = text.match(/```(?:groovy)\s*\n([\s\S]*?)```/i);
       if (groovyMatch) {
-         setGeneratedCode(groovyMatch[1].trim());
-      } else {
-        // Fallback: finding the first block that is NOT xml, json, html
+          // If we find a clear groovy block, we update it regardless (might be an edit)
+          setGeneratedCode(groovyMatch[1].trim());
+      } else if (!isModelRequest) {
+        // ONLY apply fallbacks if this is NOT a request for sample inputs
+        // This prevents overwriting the script with headers/properties markdown
         const anyBlockMatches = [...text.matchAll(/```([a-z]*)\s*\n([\s\S]*?)```/gi)];
         const potentialScripts = anyBlockMatches.filter(m => {
            const lang = m[1].toLowerCase();
-           return !['xml', 'json', 'html', 'yaml', 'yml'].includes(lang);
+           return !['xml', 'json', 'html', 'yaml', 'yml', 'json-headers', 'json-properties'].includes(lang);
         });
         
         if (potentialScripts.length > 0) {
            setGeneratedCode(potentialScripts[0][2].trim());
-        } else {
-          // Fallback for missing closing backticks
-          const fallbackMatch = text.match(/```(?:groovy|java|javascript)?\s*\n([\s\S]*)$/i);
-          if (fallbackMatch) {
-              setGeneratedCode(fallbackMatch[1].replace(/```\s*$/, '').trim());
-          }
         }
       }
 
