@@ -77,6 +77,7 @@ export default function App() {
   const [suggestedHeaders, setSuggestedHeaders] = useState<{key: string, value: string}[] | null>(null);
   const [suggestedProperties, setSuggestedProperties] = useState<{key: string, value: string}[] | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingBackground, setIsGeneratingBackground] = useState(false);
   const [credits, setCredits] = useState(15);
   const [copySuccess, setCopySuccess] = useState(false);
   const [scriptName, setScriptName] = useState('GeneratedScript');
@@ -188,25 +189,36 @@ export default function App() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return;
+  const handleGenerate = async (targetPrompt?: string, isBackground = false) => {
+    const currentPrompt = targetPrompt || prompt;
+    if (!currentPrompt.trim()) return;
     
     if (credits <= 0) {
-      setGeneratedCode(t.dashboard.errors.noCredits);
+      if (!isBackground) {
+        setGeneratedCode(t.dashboard.errors.noCredits);
+      }
       return;
     }
 
-    const currentPrompt = prompt;
-    setPrompt('');
-    setIsGenerating(true);
+    if (!isBackground) {
+      setPrompt('');
+      setIsGenerating(true);
+    } else {
+      setIsGeneratingBackground(true);
+    }
 
     // Provide current script as context only for the API call
     const contentWithContext = generatedCode.trim() 
       ? `SCRIPT ATUAL:\n\`\`\`groovy\n${generatedCode}\n\`\`\`\n\nPERGUNTA/AGIUSTE:\n${currentPrompt}`
       : currentPrompt;
 
-    const newMessages = [...messages, { role: 'user' as const, content: currentPrompt }];
-    setMessages(newMessages);
+    const newMessages = isBackground 
+      ? messages 
+      : [...messages, { role: 'user' as const, content: currentPrompt }];
+    
+    if (!isBackground) {
+      setMessages(newMessages);
+    }
 
     // Create new abort controller
     abortControllerRef.current = new AbortController();
@@ -305,7 +317,9 @@ export default function App() {
         }
       }
       
-      setMessages(prev => [...prev, { role: 'model', content: text }]);
+      if (!isBackground) {
+        setMessages(prev => [...prev, { role: 'model', content: text }]);
+      }
       setCredits(prev => prev - 1);
     } catch (error: any) {
       if (error.name === 'AbortError') {
@@ -317,6 +331,7 @@ export default function App() {
       }
     } finally {
       setIsGenerating(false);
+      setIsGeneratingBackground(false);
       abortControllerRef.current = null;
     }
   };
@@ -368,11 +383,7 @@ export default function App() {
        'Analyze the Groovy script below and generate a sample payload (XML or JSON), as well as any necessary headers and properties so it can be tested locally.') + '\n\n' +
       '```groovy\n' + script + '\n```';
     
-    setPrompt(modelPrompt);
-    setTimeout(() => {
-        const btn = document.getElementById('generate-btn');
-        if (btn) btn.click();
-    }, 50);
+    handleGenerate(modelPrompt, true);
   };
 
   const resetConversation = () => {
@@ -689,7 +700,7 @@ export default function App() {
                 />
                 <button 
                   id="generate-btn"
-                  onClick={isGenerating ? handleStop : handleGenerate}
+                  onClick={isGenerating ? handleStop : () => handleGenerate()}
                   disabled={(!isGenerating && (!prompt.trim() || credits <= 0))}
                   className={`absolute right-2 bottom-2 p-2.5 rounded-lg transition-all shadow-lg ${
                     isGenerating 
@@ -842,6 +853,7 @@ export default function App() {
                   suggestedHeaders={suggestedHeaders}
                   suggestedProperties={suggestedProperties}
                   isExecuting={isExecuting}
+                  isGeneratingBackground={isGeneratingBackground}
                   result={executionResult}
                   onRunTest={handleRunTest}
                   onFixError={handleFixError}

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Play, Database, List, Settings, TerminalSquare, AlertCircle, Plus, Trash2, GripHorizontal, GripVertical, Wand2, Sparkles } from 'lucide-react';
+import { Play, Database, List, Settings, TerminalSquare, AlertCircle, Plus, Trash2, GripHorizontal, GripVertical, Wand2, Sparkles, Loader2 } from 'lucide-react';
 import beautify from 'js-beautify';
 
 interface ExecutionPanelProps {
@@ -20,11 +20,24 @@ interface ExecutionPanelProps {
   suggestedProperties?: {key: string, value: string}[] | null;
   onFixError?: (errorMessage: string, payload: string) => void;
   onGenerateModel?: (script: string) => void;
+  isGeneratingBackground?: boolean;
 }
 
 type TabType = 'payload' | 'headers' | 'properties';
 
-export function ExecutionPanel({ script, onRunTest, isExecuting, t, result, suggestedPayload, suggestedHeaders, suggestedProperties, onFixError, onGenerateModel }: ExecutionPanelProps) {
+export function ExecutionPanel({ 
+  script, 
+  onRunTest, 
+  isExecuting, 
+  isGeneratingBackground,
+  t, 
+  result, 
+  suggestedPayload, 
+  suggestedHeaders, 
+  suggestedProperties, 
+  onFixError, 
+  onGenerateModel 
+}: ExecutionPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>('payload');
   const [inputPayload, setInputPayload] = useState('');
   const [inputHeaders, setInputHeaders] = useState<{key: string, value: string}[]>([]);
@@ -220,8 +233,12 @@ export function ExecutionPanel({ script, onRunTest, isExecuting, t, result, sugg
                 className="flex items-center gap-1.5 text-vscode-blue hover:text-white transition-colors uppercase font-bold text-[9px] disabled:opacity-30 disabled:pointer-events-none"
                 title={t.generateSampleModel}
              >
-               <Sparkles className="w-3 h-3" />
-               {t.generateSampleModel}
+               {isGeneratingBackground ? (
+                 <Loader2 className="w-3 h-3 animate-spin" />
+               ) : (
+                 <Sparkles className="w-3 h-3" />
+               )}
+               {isGeneratingBackground ? "..." : t.generateSampleModel}
              </button>
            </div>
            

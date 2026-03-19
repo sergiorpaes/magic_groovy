@@ -44,7 +44,7 @@ export const translations = {
         failed: "// Error: Failed to generate script. Please check your API key."
       },
       confirmGenerateModel: "It looks like you haven't provided any input data (Payload, Headers, or Properties). Would you like the AI to generate a sample model based on your current script?",
-      generateSampleModel: "Generate Sample Input",
+      generateSampleModel: "Generate Sample Payload",
       emptyInputTitle: "No Input Data"
     }
   },
@@ -90,7 +90,7 @@ export const translations = {
         failed: "// Erro: Falha ao gerar o script. Por favor, verifique sua chave de API."
       },
       confirmGenerateModel: "Parece que você não forneceu nenhum dado de entrada (Payload, Headers ou Properties). Gostaria que a IA gerasse um modelo de exemplo baseado no seu script atual?",
-      generateSampleModel: "Gerar Entrada de Exemplo",
+      generateSampleModel: "Gerar Payload de Exemplo",
       emptyInputTitle: "Sem Dados de Entrada"
     }
   },
@@ -136,7 +136,7 @@ export const translations = {
         failed: "// Error: Falló la generación del script. Por favor, verifique su clave API."
       },
       confirmGenerateModel: "Parece que no ha proporcionado ningún dato de entrada (Payload, Headers o Properties). ¿Le gustaría que la IA generara un modelo de ejemplo basado en su script actual?",
-      generateSampleModel: "Generar Entrada de Ejemplo",
+      generateSampleModel: "Gerar Payload de Ejemplo",
       emptyInputTitle: "Sin Datos de Entrada"
     }
   }
