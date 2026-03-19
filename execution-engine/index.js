@@ -20,16 +20,14 @@ if (!fs.existsSync(TEMP_DIR)) {
 // Path Sanitize Utility
 const sanitizeResult = (text) => {
   if (!text || typeof text !== 'string') return text;
-  // Replace absolute path to TEMP_DIR and its subdirectories with a generic label
-  const escapedTempDir = TEMP_DIR.replace(/\\/g, '\\\\');
+  
+  // Create a regex that matches the absolute path to any execution directory
+  // Example matches: /app/temp/abc123def/ or C:\app\temp\abc123def\
+  const escapedTempDir = TEMP_DIR.replace(/\\/g, '[\\\\/]');
   const regex = new RegExp(escapedTempDir + '[\\\\/][a-f0-9]+[\\\\/]?', 'gi');
-  let sanitized = text.replace(regex, '[MagicGroovy]\\');
   
-  // Also replace any remaining mention of the base TEMP_DIR
-  sanitized = sanitized.replace(new RegExp(escapedTempDir, 'gi'), '[MagicGroovy]');
-  
-  // Replace references to UserScript.groovy with just the filename if it has a path
-  return sanitized;
+  const separator = process.platform === 'win32' ? '\\' : '/';
+  return text.replace(regex, `[MagicGroovy]${separator}`);
 };
 
 // Mock CPI Message Class (Simplified)
@@ -206,10 +204,10 @@ println "===RESULT_END==="
       fs.chmodSync(batchPath, '755');
     }
 
-    const command = process.platform === 'win32' ? `cmd /c "${batchPath}"` : `bash "${batchPath}"`;
+    const command = process.platform === 'win32' ? `cmd /c "${batchPath}"` : `sh "${batchPath}"`;
     console.log('Executing:', command);
 
-    exec(command, { cwd: executionDir, timeout: 10000 }, (error, stdout, stderr) => {
+    exec(command, { cwd: executionDir, timeout: 15000 }, (error, stdout, stderr) => {
       console.log('STDOUT:', stdout);
       console.error('STDERR:', stderr);
       
