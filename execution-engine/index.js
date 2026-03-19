@@ -193,18 +193,10 @@ println "===RESULT_END==="
        '.'
     ].join(cpSeparator);
     
-    const scriptName = process.platform === 'win32' ? 'run.bat' : 'run.sh';
-    const batchPath = path.resolve(executionDir, scriptName);
-    const scriptContent = process.platform === 'win32' 
-      ? `@echo off\njava -cp "${classPath}" groovy.ui.GroovyMain Runner.groovy\n`
-      : `#!/bin/bash\njava -cp "${classPath}" groovy.ui.GroovyMain Runner.groovy\n`;
-
-    fs.writeFileSync(batchPath, scriptContent);
-    if (process.platform !== 'win32') {
-      fs.chmodSync(batchPath, '755');
-    }
-
-    const command = process.platform === 'win32' ? `cmd /c "${batchPath}"` : `sh "${batchPath}"`;
+    const command = process.platform === 'win32' 
+      ? `java -cp "${classPath}" groovy.ui.GroovyMain Runner.groovy`
+      : `java -cp "${classPath}" groovy.ui.GroovyMain Runner.groovy`;
+      
     console.log('Executing:', command);
 
     exec(command, { cwd: executionDir, timeout: 15000 }, (error, stdout, stderr) => {
