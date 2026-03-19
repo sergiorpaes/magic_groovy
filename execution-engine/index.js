@@ -12,6 +12,16 @@ app.use(express.json());
 const PORT = process.env.PORT || 8080;
 const TEMP_DIR = path.join(__dirname, 'temp');
 
+// Check Java availability
+try {
+  const { execSync } = require('child_process');
+  console.log('Checking Java availability...');
+  execSync('java -version');
+  console.log('Java is available in PATH.');
+} catch (e) {
+  console.error('CRITICAL: Java was NOT found in the system PATH.');
+}
+
 // Ensure temp directory exists
 if (!fs.existsSync(TEMP_DIR)) {
   fs.mkdirSync(TEMP_DIR);
