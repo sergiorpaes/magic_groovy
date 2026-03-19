@@ -441,8 +441,10 @@ export default function App() {
       return acc;
     }, {} as Record<string, string>);
 
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+    
     try {
-      const response = await fetch('http://localhost:3001/api/execute', {
+      const response = await fetch(`${apiBaseUrl}/api/execute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

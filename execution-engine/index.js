@@ -9,7 +9,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8080;
 const TEMP_DIR = path.join(__dirname, 'temp');
 
 // Ensure temp directory exists
@@ -195,15 +195,21 @@ println "===RESULT_END==="
        '.'
     ].join(cpSeparator);
     
-    const batchContent = `@echo off
-java -cp "${classPath}" groovy.ui.GroovyMain Runner.groovy
-`;
-    const batchPath = path.resolve(executionDir, 'run.bat');
-    fs.writeFileSync(batchPath, batchContent);
+    const scriptName = process.platform === 'win32' ? 'run.bat' : 'run.sh';
+    const batchPath = path.resolve(executionDir, scriptName);
+    const scriptContent = process.platform === 'win32' 
+      ? `@echo off\njava -cp "${classPath}" groovy.ui.GroovyMain Runner.groovy\n`
+      : `#!/bin/bash\njava -cp "${classPath}" groovy.ui.GroovyMain Runner.groovy\n`;
 
-    console.log('Executing:', `cmd /c "${batchPath}"`);
+    fs.writeFileSync(batchPath, scriptContent);
+    if (process.platform !== 'win32') {
+      fs.chmodSync(batchPath, '755');
+    }
 
-    exec(`cmd /c "${batchPath}"`, { cwd: executionDir, timeout: 10000 }, (error, stdout, stderr) => {
+    const command = process.platform === 'win32' ? `cmd /c "${batchPath}"` : `bash "${batchPath}"`;
+    console.log('Executing:', command);
+
+    exec(command, { cwd: executionDir, timeout: 10000 }, (error, stdout, stderr) => {
       console.log('STDOUT:', stdout);
       console.error('STDERR:', stderr);
       
