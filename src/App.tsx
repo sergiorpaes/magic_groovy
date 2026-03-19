@@ -48,9 +48,9 @@ C - Constraints (Restrições): Há regras específicas de tratamento de erros (
 H - Handoff (Entrega): O usuário precisa apenas do método processData(Message message) ou também de métodos auxiliares? Quer o código comentado em português ou inglês?
 
 Instruções de Saída:
-- Se houver perguntas C.O.A.C.H., faça no máximo 3.
-- O código Groovy DEVE obrigatoriamente estar envolvido em blocos de código markdown com a tag 'groovy'.
-- Sempre forneça um payload de exemplo (XML ou JSON) compatível.
+- Se houver perguntas C.O.A.C.H., faça no máximo 3 e NÃO forneça nenhum bloco de código 'groovy' nesta resposta. Aguarde a resposta do usuário.
+- Só forneça o código Groovy (em blocos markdown com tag 'groovy') se você já tiver todas as informações necessárias ou se for explicitamente solicitado.
+- Sempre forneça um payload de exemplo (XML ou JSON) compatível quando gerar o código.
 - Se o script depende de ler Headers ou Properties, forneça os blocos 'json-headers' e 'json-properties'.
 
 Imports padrão obrigatórios:
