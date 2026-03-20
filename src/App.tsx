@@ -296,26 +296,16 @@ export default function App() {
         const extractedPayload = firstPayloadBlock[1].trim();
         console.log("Extracted Payload:", extractedPayload);
         
-        // ONLY update suggested payload if it's the INITIAL script generation (first user prompt)
-        // or if it's an explicit request to generate a sample model
-        const isModelRequest = currentPrompt.includes('Analise o script Groovy abaixo e gere um payload') || 
-                               currentPrompt.includes('Analice el siguiente script de Groovy y genere un payload') || 
-                               currentPrompt.includes('Analyze the Groovy script below and generate a sample payload');
-
-        if (newMessages.length === 1 || isModelRequest) {
-          setSuggestedPayload(extractedPayload);
-        }
+        // Update suggested payload whenever provided (initial or update)
+        setSuggestedPayload(extractedPayload);
       } else {
         // We don't clear suggestedPayload because we want to keep the one from the first turn if valid
       }
 
       // 3. Extract the Headers (json-headers)
       const headersBlocks = [...text.matchAll(/```json-headers\s*\n([\s\S]*?)```/gi)];
-      const isModelRequestForOthers = currentPrompt.includes('Analise o script Groovy abaixo e gere um payload') || 
-                                      currentPrompt.includes('Analice el siguiente script de Groovy y genere un payload') || 
-                                      currentPrompt.includes('Analyze the Groovy script below and generate a sample payload');
                                       
-      if (headersBlocks.length > 0 && (newMessages.length === 1 || isModelRequestForOthers)) {
+      if (headersBlocks.length > 0) {
         try {
           const parsed = JSON.parse(headersBlocks[0][1].trim());
           const arr = Object.entries(parsed).map(([k, v]) => ({ key: k, value: String(v) }));
@@ -328,7 +318,7 @@ export default function App() {
 
       // 4. Extract the Properties (json-properties)
       const propsBlocks = [...text.matchAll(/```json-properties\s*\n([\s\S]*?)```/gi)];
-      if (propsBlocks.length > 0 && (newMessages.length === 1 || isModelRequestForOthers)) {
+      if (propsBlocks.length > 0) {
         try {
           const parsed = JSON.parse(propsBlocks[0][1].trim());
           const arr = Object.entries(parsed).map(([k, v]) => ({ key: k, value: String(v) }));
