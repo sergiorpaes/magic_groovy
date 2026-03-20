@@ -77,6 +77,11 @@ public class MappingContext {
 }
 `;
 
+// Health check endpoint to keep the service awake
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date() });
+});
+
 app.post('/api/execute', async (req, res) => {
   const { script, payload, headers, properties } = req.body;
 
@@ -142,22 +147,6 @@ public class MappingContext {
 gcl.parseClass(messageSource)
 gcl.parseClass(mappingSource)
 
-// 2. Load User Script
-def userScriptClass = gcl.parseClass(new File("UserScript.groovy"))
-def scriptInstance = userScriptClass.newInstance()
-
-// 3. Instantiate Message
-def message = gcl.loadClass("com.sap.gateway.ip.core.customdev.util.Message").newInstance()
-
-// 4. Parse Input Data
-def jsonSlurper = new JsonSlurper()
-def inputPayload = """\${'''${payload.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'''}"""
-def inputHeaders = jsonSlurper.parseText('''${headers || '{}'}''')
-def inputProperties = jsonSlurper.parseText('''${properties || '{}'}''')
-
-message.setBody(inputPayload)
-inputHeaders.each { k, v -> message.setHeader(k, v) }
-inputProperties.each { k, v -> message.setProperty(k, v) }
 
 def baos = new ByteArrayOutputStream()
 def ps = new PrintStream(baos)
@@ -165,6 +154,24 @@ def old = System.out
 
 try {
   System.setOut(ps)
+  
+  // 2. Load User Script - Parsing INSIDE try-catch to catch syntax errors
+  def userScriptClass = gcl.parseClass(new File("UserScript.groovy"))
+  def scriptInstance = userScriptClass.newInstance()
+  
+  // 3. Instantiate Message
+  def message = gcl.loadClass("com.sap.gateway.ip.core.customdev.util.Message").newInstance()
+  
+  // 4. Parse Input Data
+  def jsonSlurper = new JsonSlurper()
+  def inputPayload = """\${'''${payload.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'''}"""
+  def inputHeaders = jsonSlurper.parseText('''${headers || '{}'}''')
+  def inputProperties = jsonSlurper.parseText('''${properties || '{}'}''')
+  
+  message.setBody(inputPayload)
+  inputHeaders.each { k, v -> message.setHeader(k, v) }
+  inputProperties.each { k, v -> message.setProperty(k, v) }
+
   message = scriptInstance.processData(message)
 } catch (Throwable e) {
     System.out.flush()
@@ -191,7 +198,7 @@ println JsonOutput.toJson(result)
 println "===RESULT_END==="
 `;
 
-    const runnerPath = path.join(executionDir, 'Runner.groovy');
+    const runnerPath = path.join(executionDir, 'runner.groovy');
     fs.writeFileSync(runnerPath, runnerScript);
     
     // 4. Execute the Runner using java and the groovy standalone jars
@@ -203,15 +210,15 @@ println "===RESULT_END==="
        '.'
     ].join(cpSeparator);
     
-    const command = process.platform === 'win32' 
-      ? `java -cp "${classPath}" groovy.ui.GroovyMain Runner.groovy`
-      : `java -cp "${classPath}" groovy.ui.GroovyMain Runner.groovy`;
+    // Using a consistent lowercase filename for Linux compatibility
+    // Added -Xmx256m for memory limit on Koyeb Nano
+    const command = `java -Xmx256m -cp "${classPath}" groovy.ui.GroovyMain runner.groovy`;
       
     console.log('Executing:', command);
 
     exec(command, { cwd: executionDir, timeout: 15000 }, (error, stdout, stderr) => {
-      console.log('STDOUT:', stdout);
-      console.error('STDERR:', stderr);
+      if (stdout) console.log('STDOUT:', stdout);
+      if (stderr) console.error('STDERR:', stderr);
       
       // Attempt to extract the JSON result from stdout
       const resultMatch = stdout.match(/===RESULT_START===\r?\n([\s\S]*?)\r?\n===RESULT_END===/);
@@ -222,21 +229,26 @@ println "===RESULT_END==="
         try {
            finalResult = JSON.parse(resultMatch[1]);
         } catch (e) {
-           finalResult = { status: 'error', errorMessage: 'Failed to parse execution result JSON.', logs: stdout };
+           finalResult = { 
+             status: 'error', 
+             errorMessage: 'Failed to parse execution result JSON.', 
+             logs: stdout + (stderr ? '\nSTDERR:\n' + stderr : '') 
+           };
         }
       } else if (error) {
-        const errorMessage = stderr.trim() || stdout.trim() || error.message;
+        // Collect ALL available info if it fails
+        const details = `\n--- PROCESS ERROR ---\n${error.message}\n\n--- STDOUT ---\n${stdout}\n\n--- STDERR ---\n${stderr}`;
         finalResult = { 
           status: 'error', 
-          errorMessage: errorMessage, 
-          logs: stdout,
+          errorMessage: 'Backend process failed. See logs for details.', 
+          logs: details,
           details: { error: error.message, stderr, stdout }
         };
       } else {
         finalResult = { 
           status: 'error', 
-          errorMessage: 'Script finished without outputting result format.\\nSTDOUT:\\n' + stdout + '\\nSTDERR:\\n' + stderr, 
-          logs: stdout 
+          errorMessage: 'Script finished without outputting result format.', 
+          logs: `STDOUT:\n${stdout}\n\nSTDERR:\n${stderr}` 
         };
       }
 

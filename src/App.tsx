@@ -185,6 +185,28 @@ export default function App() {
     localStorage.setItem('app-lang', lang);
   }, [lang]);
 
+  // Heartbeat to keep backend awake (every 4 minutes)
+  useEffect(() => {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+    
+    const ping = async () => {
+      try {
+        await fetch(`${apiBaseUrl}/api/health`);
+        console.log('Heartbeat sent to backend');
+      } catch (e) {
+        console.warn('Heartbeat failed', e);
+      }
+    };
+
+    // Initial ping to wake up the server if it's sleeping
+    ping();
+
+    // Set up interval for subsequent pings
+    const interval = setInterval(ping, 240000); // 4 minutes
+    
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
