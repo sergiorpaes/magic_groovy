@@ -211,8 +211,8 @@ println "===RESULT_END==="
     ].join(cpSeparator);
     
     // Using a consistent lowercase filename for Linux compatibility
-    // Added -Xmx256m for memory limit on Koyeb Nano
-    const command = `java -Xmx256m -cp "${classPath}" groovy.ui.GroovyMain runner.groovy`;
+    // Added -Xmx96m and -Xms32m for memory optimization on Koyeb Nano (256MB total)
+    const command = `java -Xmx96m -Xms32m -cp "${classPath}" groovy.ui.GroovyMain runner.groovy`;
       
     console.log('Executing:', command);
 
