@@ -167,8 +167,8 @@ try {
   // 4. Parse Input Data
   def jsonSlurper = new JsonSlurper()
   def inputPayload = """\${'''${payload.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'''}"""
-  def inputHeaders = jsonSlurper.parseText('''${headers || '{}'}''')
-  def inputProperties = jsonSlurper.parseText('''${properties || '{}'}''')
+  def inputHeaders = jsonSlurper.parseText('''${headers.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}''')
+  def inputProperties = jsonSlurper.parseText('''${properties.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}''')
   
   message.setBody(inputPayload)
   inputHeaders.each { k, v -> message.setHeader(k, v) }
