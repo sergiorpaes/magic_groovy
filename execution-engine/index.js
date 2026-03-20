@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -211,12 +211,38 @@ println "===RESULT_END==="
     ].join(cpSeparator);
     
     // Using a consistent lowercase filename for Linux compatibility
-    // Added -Xmx96m and -Xms32m for memory optimization on Koyeb Nano (256MB total)
-    const command = `java -Xmx96m -Xms32m -cp "${classPath}" groovy.ui.GroovyMain runner.groovy`;
+    // Extreme memory optimization for Koyeb Nano (256MB total)
+    // -Xmx64m: Max heap 64MB
+    // -Xms16m: Initial heap 16MB
+    // -XX:MaxMetaspaceSize=64m: Limit metaspace
+    // -Xss256k: Reduce stack size per thread
+    const jvmArgs = [
+      '-Xmx64m', 
+      '-Xms16m', 
+      '-XX:MaxMetaspaceSize=64m', 
+      '-Xss256k',
+      '-cp', classPath,
+      'groovy.ui.GroovyMain',
+      'runner.groovy'
+    ];
       
-    console.log('Executing:', command);
+    console.log('Spawning: java', jvmArgs.join(' '));
 
-    exec(command, { cwd: executionDir, timeout: 15000 }, (error, stdout, stderr) => {
+    const child = spawn('java', jvmArgs, { cwd: executionDir });
+    
+    let stdout = '';
+    let stderr = '';
+    
+    child.stdout.on('data', (data) => { stdout += data.toString(); });
+    child.stderr.on('data', (data) => { stderr += data.toString(); });
+    
+    child.on('error', (err) => {
+      console.error('Spawn error:', err);
+      res.json({ status: 'error', errorMessage: 'Failed to start Java process: ' + err.message });
+    });
+
+    child.on('close', (code) => {
+      console.log(`Java process exited with code ${code}`);
       if (stdout) console.log('STDOUT:', stdout);
       if (stderr) console.error('STDERR:', stderr);
       
@@ -235,14 +261,13 @@ println "===RESULT_END==="
              logs: stdout + (stderr ? '\nSTDERR:\n' + stderr : '') 
            };
         }
-      } else if (error) {
+      } else if (code !== 0) {
         // Collect ALL available info if it fails
-        const details = `\n--- PROCESS ERROR ---\n${error.message}\n\n--- STDOUT ---\n${stdout}\n\n--- STDERR ---\n${stderr}`;
+        const details = `\n--- PROCESS ERROR (Exit Code ${code}) ---\n\n--- STDOUT ---\n${stdout}\n\n--- STDERR ---\n${stderr}`;
         finalResult = { 
           status: 'error', 
-          errorMessage: 'Backend process failed. See logs for details.', 
-          logs: details,
-          details: { error: error.message, stderr, stdout }
+          errorMessage: 'Backend process failed with code ' + code + '. See logs for details.', 
+          logs: details
         };
       } else {
         finalResult = { 
