@@ -152,15 +152,17 @@ def baos = new ByteArrayOutputStream()
 def ps = new PrintStream(baos)
 def old = System.out
 
+
+def message = null
 try {
   System.setOut(ps)
   
   // 2. Load User Script - Parsing INSIDE try-catch to catch syntax errors
-  def userScriptClass = gcl.parseClass(new File("UserScript.groovy"))
+  def userScriptClass = gcl.parseClass(new File("runner.groovy").parentFile == null ? new File("UserScript.groovy") : new File(new File("runner.groovy").parentFile, "UserScript.groovy"))
   def scriptInstance = userScriptClass.newInstance()
   
   // 3. Instantiate Message
-  def message = gcl.loadClass("com.sap.gateway.ip.core.customdev.util.Message").newInstance()
+  message = gcl.loadClass("com.sap.gateway.ip.core.customdev.util.Message").newInstance()
   
   // 4. Parse Input Data
   def jsonSlurper = new JsonSlurper()
