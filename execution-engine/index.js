@@ -99,15 +99,12 @@ app.post('/api/execute', async (req, res) => {
     fs.writeFileSync(scriptPath, script);
 
     // 3. Create the Runner Script that glues everything together
+    // Optimized: Classes are defined directly to avoid multiple parseClass calls
     const runnerScript = `
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
 
-// Use a unified ClassLoader for everything
-def gcl = new GroovyClassLoader(this.class.classLoader)
-
-// 1. Define Mock Classes
-def messageSource = """
+// 1. Define Mock Classes directly in the script for faster startup
 package com.sap.gateway.ip.core.customdev.util
 import java.util.HashMap
 import java.util.Map
@@ -131,38 +128,34 @@ public class Message {
     Object getProperty(String n, Class t) { _props[n] }
     Map getProperties() { _props }
     
-    // Explicitly add a way to remove headers as requested by user
     void removeHeader(String n) { _hdrs.remove(n) }
 }
-"""
 
-def mappingSource = """
 package com.sap.it.api.mapping
 public class MappingContext {
     public String getHeader(String name) { return "" }
     public String getProperty(String name) { return "" }
 }
-"""
 
-gcl.parseClass(messageSource)
-gcl.parseClass(mappingSource)
-
+package runner
+import com.sap.gateway.ip.core.customdev.util.Message
+import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
 
 def baos = new ByteArrayOutputStream()
 def ps = new PrintStream(baos)
 def old = System.out
-
-
 def message = null
+
 try {
   System.setOut(ps)
   
-  // 2. Load User Script - Parsing INSIDE try-catch to catch syntax errors
-  def userScriptClass = gcl.parseClass(new File("runner.groovy").parentFile == null ? new File("UserScript.groovy") : new File(new File("runner.groovy").parentFile, "UserScript.groovy"))
-  def scriptInstance = userScriptClass.newInstance()
+  // 2. Load and Run User Script using GroovyShell (more efficient for one-offs)
+  def shell = new GroovyShell(this.class.classLoader)
+  def userScript = shell.parse(new File("runner.groovy").parentFile == null ? new File("UserScript.groovy") : new File(new File("runner.groovy").parentFile, "UserScript.groovy"))
   
   // 3. Instantiate Message
-  message = gcl.loadClass("com.sap.gateway.ip.core.customdev.util.Message").newInstance()
+  message = new Message()
   
   // 4. Parse Input Data
   def jsonSlurper = new JsonSlurper()
@@ -174,7 +167,7 @@ try {
   inputHeaders.each { k, v -> message.setHeader(k, v) }
   inputProperties.each { k, v -> message.setProperty(k, v) }
 
-  message = scriptInstance.processData(message)
+  message = userScript.processData(message)
 } catch (Throwable e) {
     System.out.flush()
     System.setOut(old)
@@ -213,14 +206,12 @@ println "===RESULT_END==="
     ].join(cpSeparator);
     
     // Using a consistent lowercase filename for Linux compatibility
-    // Extreme memory optimization for Koyeb Nano (256MB total)
-    // -Xmx64m: Max heap 64MB
-    // -Xms16m: Initial heap 16MB
-    // -XX:MaxMetaspaceSize=64m: Limit metaspace
-    // -Xss256k: Reduce stack size per thread
+    // Optimized: Added -XX:TieredStopAtLevel=1 and -Xverify:none for faster startup
     const jvmArgs = [
       '-Xmx64m', 
       '-Xms16m', 
+      '-XX:TieredStopAtLevel=1',
+      '-Xverify:none',
       '-XX:MaxMetaspaceSize=64m', 
       '-Xss256k',
       '-cp', classPath,
