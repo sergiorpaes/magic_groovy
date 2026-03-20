@@ -100,11 +100,16 @@ app.post('/api/execute', async (req, res) => {
 
     // 3. Create the Runner Script that glues everything together
     // Optimized: Classes are defined directly to avoid multiple parseClass calls
+    // 3. Create the Runner Script that glues everything together
     const runnerScript = `
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
 
-// 1. Define Mock Classes directly in the script for faster startup
+// Use a unified ClassLoader
+def gcl = new GroovyClassLoader(this.class.classLoader)
+
+// 1. Define Mock Classes as strings
+def messageSource = """
 package com.sap.gateway.ip.core.customdev.util
 import java.util.HashMap
 import java.util.Map
@@ -130,17 +135,18 @@ public class Message {
     
     void removeHeader(String n) { _hdrs.remove(n) }
 }
+"""
 
+def mappingSource = """
 package com.sap.it.api.mapping
 public class MappingContext {
     public String getHeader(String name) { return "" }
     public String getProperty(String name) { return "" }
 }
+"""
 
-package runner
-import com.sap.gateway.ip.core.customdev.util.Message
-import groovy.json.JsonSlurper
-import groovy.json.JsonOutput
+gcl.parseClass(messageSource)
+gcl.parseClass(mappingSource)
 
 def baos = new ByteArrayOutputStream()
 def ps = new PrintStream(baos)
@@ -150,12 +156,13 @@ def message = null
 try {
   System.setOut(ps)
   
-  // 2. Load and Run User Script using GroovyShell (more efficient for one-offs)
-  def shell = new GroovyShell(this.class.classLoader)
-  def userScript = shell.parse(new File("runner.groovy").parentFile == null ? new File("UserScript.groovy") : new File(new File("runner.groovy").parentFile, "UserScript.groovy"))
+  // 2. Load User Script - File path handling for Linux/Windows
+  def userScriptFile = new File("runner.groovy").parentFile == null ? new File("UserScript.groovy") : new File(new File("runner.groovy").parentFile, "UserScript.groovy")
+  def userScriptClass = gcl.parseClass(userScriptFile)
+  def scriptInstance = userScriptClass.newInstance()
   
   // 3. Instantiate Message
-  message = new Message()
+  message = gcl.loadClass("com.sap.gateway.ip.core.customdev.util.Message").newInstance()
   
   // 4. Parse Input Data
   def jsonSlurper = new JsonSlurper()
@@ -167,7 +174,7 @@ try {
   inputHeaders.each { k, v -> message.setHeader(k, v) }
   inputProperties.each { k, v -> message.setProperty(k, v) }
 
-  message = userScript.processData(message)
+  message = scriptInstance.processData(message)
 } catch (Throwable e) {
     System.out.flush()
     System.setOut(old)
@@ -206,12 +213,11 @@ println "===RESULT_END==="
     ].join(cpSeparator);
     
     // Using a consistent lowercase filename for Linux compatibility
-    // Optimized: Added -XX:TieredStopAtLevel=1 and -Xverify:none for faster startup
+    // Optimized: Added -XX:TieredStopAtLevel=1 for faster startup
     const jvmArgs = [
       '-Xmx64m', 
       '-Xms16m', 
       '-XX:TieredStopAtLevel=1',
-      '-Xverify:none',
       '-XX:MaxMetaspaceSize=64m', 
       '-Xss256k',
       '-cp', classPath,
