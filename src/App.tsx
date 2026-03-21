@@ -91,6 +91,7 @@ export default function App() {
   
   // Execution Panel State
   const [isExecuting, setIsExecuting] = useState(false);
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline' | 'sleeping'>('checking');
   const [executionResult, setExecutionResult] = useState<{
     status: 'idle' | 'success' | 'error';
     outputPayload: string;
@@ -191,16 +192,33 @@ export default function App() {
     localStorage.setItem('app-lang', lang);
   }, [lang]);
 
+  // Centralized API Configuration
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
   // Heartbeat to keep backend awake (every 4 minutes)
   useEffect(() => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
-    
     const ping = async () => {
       try {
-        await fetch(`${apiBaseUrl}/api/health`);
-        console.log('Heartbeat sent to backend');
-      } catch (e) {
-        console.warn('Heartbeat failed', e);
+        const start = Date.now();
+        const response = await fetch(`${API_BASE_URL}/api/health`, {
+          // Add a shorter timeout for the health check to detect "sleeping" faster
+          signal: AbortSignal.timeout(5000) 
+        });
+        
+        if (response.ok) {
+          setBackendStatus('online');
+          console.log('Heartbeat sent to backend: ONLINE');
+        } else {
+          setBackendStatus('offline');
+        }
+      } catch (e: any) {
+        if (e.name === 'TimeoutError' || e.message?.includes('timeout')) {
+          setBackendStatus('sleeping');
+          console.warn('Heartbeat: Server is likely SLEEPING (timeout)');
+        } else {
+          setBackendStatus('offline');
+          console.warn('Heartbeat failed: OFFLINE', e);
+        }
       }
     };
 
@@ -211,7 +229,7 @@ export default function App() {
     const interval = setInterval(ping, 240000); // 4 minutes
     
     return () => clearInterval(interval);
-  }, []);
+  }, [API_BASE_URL]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -469,10 +487,8 @@ export default function App() {
       return acc;
     }, {} as Record<string, string>);
 
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
-    
     try {
-      const response = await fetch(`${apiBaseUrl}/api/execute`, {
+      const response = await fetch(`${API_BASE_URL}/api/execute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -498,6 +514,7 @@ export default function App() {
          });
       } else {
          // Success
+         setBackendStatus('online');
          setExecutionResult({
             status: 'success',
             outputPayload: data.body || '',
@@ -508,14 +525,20 @@ export default function App() {
       }
 
     } catch (error: any) {
+      const isLocal = API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1');
+      const errorMsg = isLocal 
+        ? `Failed to connect to Local Execution Engine.\nIs the Node.js server running on port 3001?\n\nError: ${error.message}`
+        : `Failed to connect to Remote Execution Engine at:\n${API_BASE_URL}\n\nThis usually means the service is still sleeping or the URL is incorrect.\nTry again in a few seconds.\n\nError: ${error.message}`;
+
       setExecutionResult({
         status: 'error',
         outputPayload: '',
         outputHeaders: '',
         outputProperties: '',
         logs: '',
-        errorMessage: 'Failed to connect to Local Execution Engine.\nIs the Node.js server running on port 3001?\n\nError: ' + error.message
+        errorMessage: errorMsg
       });
+      setBackendStatus('offline');
     } finally {
       setIsExecuting(false);
     }
@@ -626,15 +649,27 @@ export default function App() {
           >
             {t.dashboard.newScript}
           </button>
-          <motion.div 
-            key={credits}
-            initial={{ scale: 1.1, color: '#007ACC' }}
-            animate={{ scale: 1, color: credits <= 3 ? '#ef4444' : '#32363A' }}
-            className={`flex items-center gap-2 px-3 py-1 bg-vscode-bg rounded border ${credits <= 3 ? 'border-red-500/50' : 'border-vscode-border'}`}
-          >
-            <CreditCard className={`w-4 h-4 ${credits <= 3 ? 'text-red-500' : 'text-vscode-blue'}`} />
-            <span className="text-sm font-medium">{credits} {t.dashboard.credits}</span>
-          </motion.div>
+          <div className="flex items-center gap-4 px-3 py-1 bg-vscode-bg rounded border border-vscode-border">
+            <div className="flex items-center gap-1.5" title={`Engine Status: ${backendStatus.toUpperCase()}`}>
+              <div className={`w-2 h-2 rounded-full ${
+                backendStatus === 'online' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' :
+                backendStatus === 'sleeping' ? 'bg-yellow-500 animate-pulse' :
+                backendStatus === 'checking' ? 'bg-blue-400 animate-pulse' :
+                'bg-red-500'
+              }`} />
+              <span className="text-[10px] uppercase font-bold tracking-tight opacity-40">Engine</span>
+            </div>
+            <div className="w-px h-3 bg-vscode-border" />
+            <motion.div 
+              key={credits}
+              initial={{ scale: 1.1, color: '#007ACC' }}
+              animate={{ scale: 1, color: credits <= 3 ? '#ef4444' : 'inherit' }}
+              className="flex items-center gap-2"
+            >
+              <CreditCard className={`w-3.5 h-3.5 ${credits <= 3 ? 'text-red-500' : 'text-vscode-blue'}`} />
+              <span className="text-xs font-medium">{credits} {t.dashboard.credits}</span>
+            </motion.div>
+          </div>
         </div>
       </header>
 
