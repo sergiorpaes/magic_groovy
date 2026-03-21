@@ -6,6 +6,16 @@ const path = require('path');
 const crypto = require('crypto');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
+
+// Email Transporter (Gmail with App Password)
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER || 'integrate.education.solutions@gmail.com',
+    pass: process.env.EMAIL_PASSWORD
+  }
+});
 
 // Database connection (Neon Postgres)
 const pool = new Pool({
@@ -133,13 +143,38 @@ app.post('/api/auth/register', async (req, res) => {
       [name, email, passwordHash, activationCode]
     );
 
-    // TODO: Send real email. For now, log the code.
-    console.log(`[SIMULATED EMAIL] To: ${email} | Subject: Ative sua conta | Code: ${activationCode}`);
+    // Send Real Email
+    const mailOptions = {
+      from: process.env.EMAIL_USER || 'integrate.education.solutions@gmail.com',
+      to: email,
+      subject: '✨ Ative seu acesso ao Magic Groovy',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+          <h2 style="color: #0078d4;">Bem-vindo ao Magic Groovy!</h2>
+          <p>Olá <b>${name}</b>,</p>
+          <p>Para começar sua jornada mágica, use o código abaixo para ativar sua conta:</p>
+          <div style="background: #f1f5f9; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 12px; color: #334155;">${activationCode}</span>
+          </div>
+          <p>Cole este código no portal para liberar seu acesso.</p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+          <p style="font-size: 12px; color: #64748b;">Se você não solicitou este cadastro, ignore este e-mail.</p>
+        </div>
+      `
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log(`[EMAIL SENT] To: ${email} | Code: ${activationCode}`);
+    } catch (mailErr) {
+      console.error('Failed to send email:', mailErr);
+      // We still return 201 because the user was created. 
+      // In a real app we might retry or warn the user.
+    }
 
     res.status(201).json({ 
       message: 'User registered. Please check your email for the activation code.',
-      user: result.rows[0],
-      simulated: true // Flag for frontend to know it's in demo mode
+      user: result.rows[0]
     });
   } catch (err) {
     if (err.code === '23505') { // Unique constraint violation
