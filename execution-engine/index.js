@@ -4,6 +4,41 @@ const { exec, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
+
+// Database connection (Neon Postgres)
+const pool = new Pool({
+  connectionString: process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+// Initialize Database Tables
+async function initDB() {
+  try {
+    const client = await pool.connect();
+    console.log('Connected to Neon Postgres.');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS magic_users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255),
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        activation_code VARCHAR(10),
+        is_active BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('Database tables verified/created with magic_ prefix.');
+    client.release();
+  } catch (err) {
+    console.error('Error initializing database:', err);
+  }
+}
+
+initDB();
 
 const app = express();
 app.use(cors());
@@ -78,8 +113,124 @@ public class MappingContext {
 `;
 
 // Health check endpoint to keep the service awake
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date() });
+// --- Authentication Routes ---
+
+// Register
+app.post('/api/auth/register', async (req, res) => {
+  const { name, email, password } = req.body;
+  
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'Name, email and password are required' });
+  }
+
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+    const activationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const result = await pool.query(
+      'INSERT INTO magic_users (name, email, password_hash, activation_code) VALUES ($1, $2, $3, $4) RETURNING id, name, email',
+      [name, email, passwordHash, activationCode]
+    );
+
+    // TODO: Send real email. For now, log the code.
+    console.log(`[SIMULATED EMAIL] To: ${email} | Subject: Ative sua conta | Code: ${activationCode}`);
+
+    res.status(201).json({ 
+      message: 'User registered. Please check your email for the activation code.',
+      user: result.rows[0],
+      simulated: true // Flag for frontend to know it's in demo mode
+    });
+  } catch (err) {
+    if (err.code === '23505') { // Unique constraint violation
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+    console.error('Registration error:', err);
+    res.status(500).json({ error: 'Error creating user' });
+  }
+});
+
+// Activate
+app.post('/api/auth/activate', async (req, res) => {
+  const { email, code } = req.body;
+
+  if (!email || !code) {
+    return res.status(400).json({ error: 'Email and code are required' });
+  }
+
+  try {
+    const result = await pool.query(
+      'UPDATE magic_users SET is_active = TRUE, activation_code = NULL WHERE email = $1 AND activation_code = $2 RETURNING id, name, email',
+      [email, code]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(400).json({ error: 'Invalid activation code or email' });
+    }
+
+    res.json({ message: 'Account activated successfully!', user: result.rows[0] });
+  } catch (err) {
+    console.error('Activation error:', err);
+    res.status(500).json({ error: 'Error activating account' });
+  }
+});
+
+// Login
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT * FROM magic_users WHERE email = $1',
+      [email]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const user = result.rows[0];
+
+    if (!user.is_active) {
+      return res.status(403).json({ error: 'Account not activated. Please check your email.' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Return user info. In a real app, we'd return a JWT.
+    res.json({ 
+      message: 'Login successful', 
+      user: { id: user.id, name: user.name, email: user.email } 
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Error logging in' });
+  }
+});
+
+// Health check updated with DB info
+app.get('/api/health', async (req, res) => {
+  let dbStatus = 'disconnected';
+  try {
+    await pool.query('SELECT 1');
+    dbStatus = 'connected';
+  } catch (e) {
+    dbStatus = 'error';
+  }
+  
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date(), 
+    engine: 'active',
+    database: dbStatus 
+  });
 });
 
 app.post('/api/execute', async (req, res) => {

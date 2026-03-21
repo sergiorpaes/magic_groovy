@@ -22,12 +22,14 @@ import {
   Wand2,
   Globe,
   MessageSquare,
-  Brain
+  Brain,
+  LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import beautify from 'js-beautify';
 import { translations, Language } from './translations';
 import { ExecutionPanel } from './ExecutionPanel';
+import { AuthPortal } from './AuthPortal';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -77,6 +79,7 @@ export default function App() {
     return (saved as Language) || 'en';
   });
   const [prompt, setPrompt] = useState('');
+  const [user, setUser] = useState<any>(null);
   const [messages, setMessages] = useState<{role: 'user' | 'model', content: string}[]>([]);
   const [generatedCode, setGeneratedCode] = useState<string>('');
   const [suggestedPayload, setSuggestedPayload] = useState<string | null>(null);
@@ -105,6 +108,24 @@ export default function App() {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Handle auth persistence
+  useEffect(() => {
+    const savedUser = localStorage.getItem('magic_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+  }, []);
+
+  const handleLogin = (userData: any) => {
+    setUser(userData);
+    localStorage.setItem('magic_user', JSON.stringify(userData));
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('magic_user');
+  };
 
   // Resize Handlers for the Workspace
   const [leftPanelWidth, setLeftPanelWidth] = useState(50);
@@ -570,6 +591,10 @@ export default function App() {
     </div>
   );
 
+  if (!user) {
+    return <AuthPortal onLogin={handleLogin} apiBaseUrl={API_BASE_URL} />;
+  }
+
   if (view === 'landing') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#0D1117] relative overflow-hidden">
@@ -676,6 +701,15 @@ export default function App() {
               <CreditCard className={`w-3.5 h-3.5 ${credits <= 3 ? 'text-red-500' : 'text-vscode-blue'}`} />
               <span className="text-xs font-medium">{credits} {t.dashboard.credits}</span>
             </motion.div>
+            <motion.button 
+              whileHover={{ y: -1 }}
+              whileTap={{ y: 1 }}
+              className="p-1.5 hover:bg-vscode-border/30 rounded text-vscode-text/30 hover:text-red-400 transition-all ml-1" 
+              title={lang === 'pt' ? 'Sair' : lang === 'es' ? 'Salir' : 'Logout'}
+              onClick={handleLogout}
+            >
+              <LogOut className="w-4 h-4" />
+            </motion.button>
           </div>
         </div>
       </header>
