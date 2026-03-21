@@ -80,6 +80,7 @@ export default function App() {
   });
   const [prompt, setPrompt] = useState('');
   const [user, setUser] = useState<any>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [messages, setMessages] = useState<{role: 'user' | 'model', content: string}[]>([]);
   const [generatedCode, setGeneratedCode] = useState<string>('');
   const [suggestedPayload, setSuggestedPayload] = useState<string | null>(null);
@@ -120,6 +121,8 @@ export default function App() {
   const handleLogin = (userData: any) => {
     setUser(userData);
     localStorage.setItem('magic_user', JSON.stringify(userData));
+    setShowAuthModal(false);
+    setView('dashboard');
   };
 
   const handleLogout = () => {
@@ -591,13 +594,16 @@ export default function App() {
     </div>
   );
 
-  if (!user) {
-    return <AuthPortal onLogin={handleLogin} apiBaseUrl={API_BASE_URL} />;
-  }
-
   if (view === 'landing') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#0D1117] relative overflow-hidden">
+        {showAuthModal && (
+          <AuthPortal 
+            onLogin={handleLogin} 
+            apiBaseUrl={API_BASE_URL} 
+            onClose={() => setShowAuthModal(false)} 
+          />
+        )}
         {/* Background Ambient Glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-vscode-blue/5 rounded-full blur-[120px] pointer-events-none" />
         
@@ -640,7 +646,10 @@ export default function App() {
           {/* Action Section */}
           <div className="pt-6">
             <button 
-              onClick={() => setView('dashboard')}
+              onClick={() => {
+                if (!user) setShowAuthModal(true);
+                else setView('dashboard');
+              }}
               className="btn-premium-glow px-10 py-4 text-lg flex items-center gap-3 mx-auto group"
             >
               {t.landing.getStarted}
