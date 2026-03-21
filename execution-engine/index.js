@@ -9,7 +9,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8000;
 const TEMP_DIR = path.join(__dirname, 'temp');
 
 // Check Java availability
@@ -305,5 +305,5 @@ println "===RESULT_END==="
 });
 
 app.listen(PORT, () => {
-  console.log(`Execution Engine running on http://localhost:${PORT}`);
+  console.log(`Execution Engine running on port ${PORT}`);
 });
