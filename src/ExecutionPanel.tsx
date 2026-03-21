@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Play, Database, List, Settings, TerminalSquare, AlertCircle, Plus, Trash2, GripHorizontal, GripVertical, Wand2, Sparkles, Loader2 } from 'lucide-react';
+import { Play, Database, List, Settings, TerminalSquare, AlertCircle, Plus, Trash2, GripHorizontal, GripVertical, Wand2, Sparkles, Loader2, Copy } from 'lucide-react';
 import beautify from 'js-beautify';
 
 interface ExecutionPanelProps {
@@ -457,6 +457,21 @@ export function ExecutionPanel({
              >
                <div className="px-3 py-1 bg-[#252526] text-[10px] font-bold uppercase text-vscode-text/40 flex items-center justify-between shrink-0">
                  <span>Console Logs (messageLog)</span>
+                  {(result.errorMessage || result.logs) && (
+                    <button 
+                      onClick={() => {
+                        const content = result.errorMessage 
+                          ? `${result.errorMessage}${result.logs ? '\n\n--- Console Output ---\n' + result.logs : ''}`
+                          : result.logs;
+                        navigator.clipboard.writeText(content);
+                      }}
+                      className="ml-2 text-vscode-blue hover:text-white transition-colors flex items-center gap-1 group"
+                      title="Copy logs and errors"
+                    >
+                      <Copy className="w-3 h-3 group-active:scale-95 transition-transform" />
+                      Copy
+                    </button>
+                  )}
                </div>
                <div className="flex-1 p-2 overflow-auto custom-scrollbar text-gray-400 font-mono text-[11px] whitespace-pre-wrap">
                  {result.status === 'error' ? (
