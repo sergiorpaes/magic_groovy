@@ -217,7 +217,10 @@ export default function App() {
   }, [lang]);
 
   // Centralized API Configuration
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+    (window.location.hostname.includes('netlify.app') 
+      ? 'https://magic-groovy-backend.koyeb.app' 
+      : 'http://localhost:3001');
 
   // Heartbeat to keep backend awake (every 4 minutes)
   useEffect(() => {
@@ -230,8 +233,13 @@ export default function App() {
         });
         
         if (response.ok) {
-          setBackendStatus('online');
-          console.log('Heartbeat sent to backend: ONLINE');
+          const data = await response.json();
+          if (data && data.status === 'ok') {
+            setBackendStatus('online');
+            console.log('Heartbeat sent to backend: ONLINE');
+          } else {
+            throw new Error('Invalid health check response');
+          }
         } else {
           setBackendStatus('offline');
         }
