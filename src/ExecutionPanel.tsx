@@ -119,6 +119,9 @@ export function ExecutionPanel({
     if (suggestedPayload) {
       setInputPayload(suggestedPayload);
       setActiveTab('payload');
+    } else if (suggestedPayload === null) {
+      setInputPayload('');
+      setActiveTab('payload');
     }
   }, [suggestedPayload]);
 
@@ -126,6 +129,8 @@ export function ExecutionPanel({
   useEffect(() => {
     if (suggestedHeaders && suggestedHeaders.length > 0) {
       setInputHeaders(suggestedHeaders);
+    } else if (suggestedHeaders === null) {
+      setInputHeaders([]);
     }
   }, [suggestedHeaders]);
 
@@ -133,6 +138,8 @@ export function ExecutionPanel({
   useEffect(() => {
     if (suggestedProperties && suggestedProperties.length > 0) {
       setInputProperties(suggestedProperties);
+    } else if (suggestedProperties === null) {
+      setInputProperties([]);
     }
   }, [suggestedProperties]);
 

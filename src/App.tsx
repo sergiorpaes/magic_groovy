@@ -426,6 +426,13 @@ export default function App() {
     setMessages([]);
     setGeneratedCode('');
     setPrompt('');
+    setSuggestedPayload(null);
+    setSuggestedHeaders(null);
+    setSuggestedProperties(null);
+    setScriptName('GeneratedScript');
+    setExecutionResult({
+      status: 'idle', outputPayload: '', outputHeaders: '', outputProperties: '', logs: ''
+    });
   };
 
   const copyToClipboard = () => {
