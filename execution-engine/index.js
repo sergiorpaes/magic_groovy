@@ -326,9 +326,20 @@ app.post('/api/execute', async (req, res) => {
   fs.mkdirSync(executionDir);
 
   try {
-    // 2. Write the user's script
+    // 2. Write the user's script with common CPI imports for compatibility
     const scriptPath = path.join(executionDir, 'UserScript.groovy');
-    fs.writeFileSync(scriptPath, script);
+    
+    // Inject common imports used in CPI and handle Groovy 4 moves
+    const injectedImports = `
+import com.sap.gateway.ip.core.customdev.util.Message
+import groovy.xml.XmlParser
+import groovy.xml.XmlNodePrinter
+import groovy.xml.XmlSlurper
+import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
+import groovy.json.JsonBuilder
+`;
+    fs.writeFileSync(scriptPath, injectedImports + "\n" + script);
 
     // 3. Create the Runner Script that glues everything together
     // Optimized: Classes are defined directly to avoid multiple parseClass calls
