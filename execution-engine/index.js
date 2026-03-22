@@ -399,6 +399,12 @@ try {
 
     // Explicitly inherit URLs
     def parentLoader = this.class.classLoader
+
+    // Compatibility Layer: Add common extensions that developers expect
+    String.metaClass.encodeBase64 = { -> delegate.getBytes().encodeBase64() }
+    String.metaClass.decodeBase64 = { -> delegate.getBytes().decodeBase64() }
+    
+    // Diagnostic: Print what the runner sees
     while (parentLoader != null) {
         if (parentLoader.respondsTo('getURLs')) {
             parentLoader.getURLs().each { url -> 

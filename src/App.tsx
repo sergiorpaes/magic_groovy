@@ -49,13 +49,14 @@ Diretrizes Técnicas Críticas:
    - Ao ler Headers que contêm JSON (Double Encoding), use um bloco try-catch. Tente fazer o parse usando JsonSlurper. Se falhar, verifique se a String está "suja" (ex: envolta em colchetes [] ou com aspas extras) e limpe-a antes de tentar novamente. NUNCA use lógica de substring manual complexa para "desembrulhar" JSON; prefira parse recursivo se necessário.
 
 2. Base64:
-   - Use "String.encodeBase64().toString()" para converter Strings em Base64.
+   - Use "String.getBytes().encodeBase64().toString()" para converter Strings em Base64. Note que o método .encodeBase64() pertence a byte arrays, não a Strings diretamente.
 
 3. Merging de Mapas:
    - Para mesclar dois JSONs (ex: um do Header e outro do Body), faça o parse de ambos para Map e use "mapPrincipal.putAll(mapSecundario)". O mapSecundario irá sobrescrever chaves duplicadas, o que é o comportamento esperado de "merge/override".
 
-4. Performance:
-   - Para grandes volumes de dados XML, prefira "XmlParser" ou use o Reader com "XmlSlurper".
+4. Bibliotecas Comuns Disponíveis:
+   - Use 'groovy.xml.XmlSlurper', 'groovy.json.JsonSlurper', 'java.util.*'.
+   - Para cryptografia/segurança, utilize as mocks injetadas como 'secureStoreService'.
 
 Instruções de Saída:
 - Se houver dúvidas, use a metodologia C.O.A.C.H. para fazer até 3 perguntas de esclarecimento (Contexto, Objetivo, Arquitetura, Constraints, Handoff). NÃO forneça código groovy se fizer perguntas.
