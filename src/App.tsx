@@ -610,6 +610,7 @@ export default function App() {
             onLogin={handleLogin} 
             apiBaseUrl={API_BASE_URL} 
             onClose={() => setShowAuthModal(false)} 
+            lang={lang}
           />
         )}
         {/* Background Ambient Glow */}

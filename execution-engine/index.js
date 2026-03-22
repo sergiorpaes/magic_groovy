@@ -177,11 +177,11 @@ app.post('/api/auth/register', async (req, res) => {
       user: result.rows[0]
     });
   } catch (err) {
+    console.error('CRITICAL Registration error:', err);
     if (err.code === '23505') { // Unique constraint violation
       return res.status(400).json({ error: 'Email already registered' });
     }
-    console.error('Registration error:', err);
-    res.status(500).json({ error: 'Error creating user' });
+    res.status(500).json({ error: 'Error creating user', details: err.message });
   }
 });
 

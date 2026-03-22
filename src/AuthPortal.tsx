@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Lock, User, ArrowRight, ShieldCheck, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, User, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { translations, Language } from './translations';
 
 interface AuthPortalProps {
   onLogin: (user: any) => void;
   apiBaseUrl: string;
   onClose?: () => void;
+  lang: Language;
 }
 
 type AuthMode = 'login' | 'register' | 'activate';
 
-export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onClose }) => {
+export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onClose, lang }) => {
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,6 +21,8 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const t = translations[lang].auth;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +57,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Registration failed');
       setMode('activate');
-      setMessage('Conta criada! Por favor, informe o código de ativação enviado por e-mail.');
+      setMessage(t.registrationSuccess);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -74,7 +78,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Activation failed');
       setMode('login');
-      setMessage('Conta ativada com sucesso! Agora você pode fazer login.');
+      setMessage(t.activationSuccess);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -97,14 +101,14 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
         >
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-white mb-2">
-              {mode === 'login' && 'Bem-vindo de volta'}
-              {mode === 'register' && 'Crie sua conta'}
-              {mode === 'activate' && 'Ativação de conta'}
+              {mode === 'login' && t.loginTitle}
+              {mode === 'register' && t.registerTitle}
+              {mode === 'activate' && t.activateTitle}
             </h2>
             <p className="text-gray-400">
-              {mode === 'login' && 'Acesse seus scripts e workspace.'}
-              {mode === 'register' && 'Junte-se a comunidade de desenvolvedores.'}
-              {mode === 'activate' && 'Informe o código enviado ao seu e-mail.'}
+              {mode === 'login' && t.loginSubtitle}
+              {mode === 'register' && t.registerSubtitle}
+              {mode === 'activate' && t.activateSubtitle}
             </p>
           </div>
 
@@ -125,7 +129,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
           <form onSubmit={mode === 'login' ? handleLogin : mode === 'register' ? handleRegister : handleActivate} className="space-y-4">
             {mode === 'register' && (
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase ml-1">Nome completo</label>
+                <label className="text-xs font-semibold text-gray-500 uppercase ml-1">{t.nameLabel}</label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                   <input 
@@ -133,7 +137,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full bg-black/40 border border-vscode-border/50 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-vscode-blue transition-colors"
-                    placeholder="Seu nome"
+                    placeholder={t.namePlaceholderText}
                     required
                   />
                 </div>
@@ -142,7 +146,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
 
             {(mode === 'login' || mode === 'register' || mode === 'activate') && (
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase ml-1">E-mail</label>
+                <label className="text-xs font-semibold text-gray-500 uppercase ml-1">{t.emailLabel}</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                   <input 
@@ -150,7 +154,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-black/40 border border-vscode-border/50 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-vscode-blue transition-colors"
-                    placeholder="seu@email.com"
+                    placeholder={t.emailPlaceholder}
                     required
                   />
                 </div>
@@ -159,7 +163,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
 
             {mode === 'activate' && (
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase ml-1">Código de Ativação</label>
+                <label className="text-xs font-semibold text-gray-500 uppercase ml-1">{t.codeLabel}</label>
                 <div className="relative">
                   <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                   <input 
@@ -167,7 +171,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     className="w-full bg-black/40 border border-vscode-border/50 rounded-xl py-3 pl-12 pr-4 text-white font-mono tracking-widest text-center text-lg focus:outline-none focus:border-vscode-blue transition-colors"
-                    placeholder="123456"
+                    placeholder={t.codePlaceholder}
                     required
                   />
                 </div>
@@ -176,7 +180,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
 
             {mode !== 'activate' && (
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase ml-1">Senha</label>
+                <label className="text-xs font-semibold text-gray-500 uppercase ml-1">{t.passwordLabel}</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                   <input 
@@ -184,7 +188,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full bg-black/40 border border-vscode-border/50 rounded-xl py-3 pl-12 pr-4 text-white focus:outline-none focus:border-vscode-blue transition-colors"
-                    placeholder="••••••••"
+                    placeholder={t.passwordPlaceholder}
                     required
                   />
                 </div>
@@ -196,15 +200,15 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
               disabled={loading}
               className="w-full py-4 bg-vscode-blue text-white rounded-xl font-bold mt-4 hover:bg-vscode-blue/90 transition-all flex items-center justify-center gap-2 transform active:scale-[0.98] disabled:opacity-50 disabled:scale-100"
             >
-              {loading ? 'Processando...' : mode === 'login' ? 'Entrar' : mode === 'register' ? 'Criar Conta' : 'Ativar Conta'}
+              {loading ? t.processing : mode === 'login' ? t.loginBtn : mode === 'register' ? t.registerBtn : t.activateBtn}
             </button>
           </form>
 
           <div className="mt-8 text-center text-sm">
             <span className="text-gray-500">
-              {mode === 'login' && 'Não tem uma conta?'}
-              {mode === 'register' && 'Já tem uma conta?'}
-              {mode === 'activate' && 'Não recebeu o código?'}
+              {mode === 'login' && t.noAccount}
+              {mode === 'register' && t.haveAccount}
+              {mode === 'activate' && t.noCode}
             </span>
             <button 
               onClick={() => {
@@ -216,9 +220,9 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
               }}
               className="ml-2 text-vscode-blue font-bold hover:underline"
             >
-              {mode === 'login' && 'Crie uma agora'}
-              {mode === 'register' && 'Fazer login'}
-              {mode === 'activate' && 'Registrar novamente'}
+              {mode === 'login' && t.createOne}
+              {mode === 'register' && t.loginNow}
+              {mode === 'activate' && t.registerAgain}
             </button>
           </div>
 
@@ -226,7 +230,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
             onClick={onClose}
             className="mt-4 w-full text-xs text-vscode-text/40 hover:text-vscode-text/60 transition-colors uppercase font-bold tracking-wider"
           >
-            Fechar
+            {t.close}
           </button>
         </motion.div>
       </AnimatePresence>
