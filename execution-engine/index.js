@@ -591,9 +591,20 @@ try {
 }
 
 def logs = baos.toString()
+def finalBody = message.getBody()
+if (finalBody instanceof byte[]) {
+    try {
+        finalBody = new String(finalBody, "UTF-8")
+    } catch (e) {
+        finalBody = finalBody.toString()
+    }
+} else {
+    finalBody = finalBody?.toString() ?: ""
+}
+
 def result = [
   status: 'success',
-  body: message.getBody()?.toString() ?: "",
+  body: finalBody,
   headers: message.getHeaders(),
   properties: message.getProperties(),
   logs: logs
