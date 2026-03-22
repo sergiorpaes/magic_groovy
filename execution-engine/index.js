@@ -198,6 +198,22 @@ app.post('/api/auth/register', async (req, res) => {
     try {
       await transporter.sendMail(mailOptions);
       console.log(`[EMAIL SENT] To: ${email} | Lang: ${lang} | Code: ${activationCode}`);
+      
+      // Admin Notification
+      const adminMailOptions = {
+        from: process.env.EMAIL_USER || 'integrate.education.solutions@gmail.com',
+        to: process.env.EMAIL_USER || 'integrate.education.solutions@gmail.com',
+        subject: '🆕 Novo Usuário Registrado - Magic Groovy',
+        html: `
+          <h3>Novo cadastro realizado!</h3>
+          <p><b>Nome:</b> ${name}</p>
+          <p><b>E-mail:</b> ${email}</p>
+          <p><b>Idioma:</b> ${lang}</p>
+          <p><b>Data:</b> ${new Date().toLocaleString()}</p>
+        `
+      };
+      await transporter.sendMail(adminMailOptions);
+      console.log(`[ADMIN NOTIFIED] For new user: ${email}`);
     } catch (mailErr) {
       console.error('Failed to send email:', mailErr);
     }
