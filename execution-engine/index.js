@@ -134,7 +134,7 @@ public class MappingContext {
 
 // Register
 app.post('/api/auth/register', async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, lang = 'pt' } = req.body;
   
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'Name, email and password are required' });
@@ -150,33 +150,56 @@ app.post('/api/auth/register', async (req, res) => {
       [name, email, passwordHash, activationCode]
     );
 
-    // Send Real Email
+    // Email Templates
+    const templates = {
+      pt: {
+        subject: '✨ Ative seu acesso ao Magic Groovy',
+        title: 'Bem-vindo ao Magic Groovy!',
+        body: `Olá <b>${name}</b>, para começar sua jornada mágica, use o código abaixo para ativar sua conta:`,
+        footer: 'Cole este código no portal para liberar seu acesso.',
+        ignore: 'Se você não solicitou este cadastro, ignore este e-mail.'
+      },
+      en: {
+        subject: '✨ Activate your Magic Groovy account',
+        title: 'Welcome to Magic Groovy!',
+        body: `Hi <b>${name}</b>, to start your magic journey, use the code below to activate your account:`,
+        footer: 'Paste this code in the portal to unlock your access.',
+        ignore: "If you didn't request this registration, please ignore this email."
+      },
+      es: {
+        subject: '✨ Activa tu cuenta de Magic Groovy',
+        title: '¡Bienvenido a Magic Groovy!',
+        body: `Hola <b>${name}</b>, para comenzar tu viaje mágico, usa el código a continuación para activar tu cuenta:`,
+        footer: 'Pega este código en el portal para desbloquear tu acceso.',
+        ignore: 'Si no solicitaste este registro, ignora este correo electrónico.'
+      }
+    };
+
+    const t = templates[lang] || templates.pt;
+
     const mailOptions = {
       from: process.env.EMAIL_USER || 'integrate.education.solutions@gmail.com',
       to: email,
-      subject: '✨ Ative seu acesso ao Magic Groovy',
+      subject: t.subject,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-          <h2 style="color: #0078d4;">Bem-vindo ao Magic Groovy!</h2>
-          <p>Olá <b>${name}</b>,</p>
-          <p>Para começar sua jornada mágica, use o código abaixo para ativar sua conta:</p>
+          <h2 style="color: #0078d4;">${t.title}</h2>
+          <p>${t.body}</p>
           <div style="background: #f1f5f9; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
             <span style="font-size: 32px; font-weight: bold; letter-spacing: 12px; color: #334155;">${activationCode}</span>
           </div>
-          <p>Cole este código no portal para liberar seu acesso.</p>
+          <p>${t.footer}</p>
           <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-          <p style="font-size: 12px; color: #64748b;">Se você não solicitou este cadastro, ignore este e-mail.</p>
+          <p style="font-size: 12px; color: #64748b;">${t.ignore}</p>
         </div>
       `
     };
 
     try {
       await transporter.sendMail(mailOptions);
-      console.log(`[EMAIL SENT] To: ${email} | Code: ${activationCode}`);
+      console.log(`[EMAIL SENT] To: ${email} | Lang: ${lang} | Code: ${activationCode}`);
     } catch (mailErr) {
       console.error('Failed to send email:', mailErr);
-      // We still return 201 because the user was created. 
-      // In a real app we might retry or warn the user.
     }
 
     res.status(201).json({ 

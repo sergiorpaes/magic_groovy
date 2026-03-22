@@ -52,7 +52,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
       const res = await fetch(`${apiBaseUrl}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password })
+        body: JSON.stringify({ name, email, password, lang })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.details ? `${data.error}: ${data.details}` : (data.error || 'Registration failed'));
