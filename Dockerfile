@@ -1,27 +1,30 @@
 FROM node:20-slim
 
-# 1. Install Java (OpenJDK 17)
+# 1. Install Java (OpenJDK 17), wget, and unzip
 RUN apt-get update && \
-    apt-get install -y openjdk-17-jre-headless && \
+    apt-get install -y openjdk-17-jre-headless wget unzip && \
     rm -rf /var/lib/apt/lists/*
 
-# 2. Set working directory
+# 2. Download and install Groovy 4.0.15
+RUN wget https://archive.apache.org/dist/groovy/4.0.15/distribution/apache-groovy-binary-4.0.15.zip && \
+    unzip apache-groovy-binary-4.0.15.zip && \
+    mv groovy-4.0.15 /opt/groovy && \
+    rm apache-groovy-binary-4.0.15.zip
+
+# 3. Set working directory
 WORKDIR /app
 
-# 3. Copy only the backend folder contents to /app
+# 4. Copy only the backend folder contents to /app
 COPY execution-engine/ ./
 
-# 4. Install backend dependencies
-# (Assumes execution-engine/package.json exists)
+# 5. Install backend dependencies
 RUN npm install --production
 
-# 5. Create temp directory
+# 6. Create temp directory
 RUN mkdir -p temp && chmod 777 temp
 
-# 6. Expose Koyeb port
+# 7. Expose Koyeb port
 EXPOSE 8000
 
-# 7. Start the server
-# Since we copied everything from execution-engine to /app, 
-# index.js is now in the root of /app
+# 8. Start the server
 CMD ["node", "index.js"]

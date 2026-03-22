@@ -343,19 +343,21 @@ app.post('/api/execute', async (req, res) => {
     // Inject common imports used in CPI and handle Groovy 4 moves
     const injectedImports = `
 import com.sap.gateway.ip.core.customdev.util.Message
-import groovy.xml.XmlParser
-import groovy.xml.XmlNodePrinter
-import groovy.xml.XmlSlurper
-import groovy.xml.QName
-import groovy.json.JsonSlurper
-import groovy.json.JsonOutput
-import groovy.json.JsonBuilder
+import com.sap.gateway.ip.core.customdev.util.Exchange
+import groovy.xml.*
+import groovy.util.*
+import groovy.json.*
+import groovy.time.*
+import java.io.*
+import java.util.*
+import java.text.*
+import java.math.*
+import java.net.*
 `;
     fs.writeFileSync(scriptPath, injectedImports + "\n" + script);
 
     // 3. Create the Runner Script that glues everything together
     // Optimized: Classes are defined directly to avoid multiple parseClass calls
-    // 3. Create the Runner Script that glues everything together
     const runnerScript = `
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
@@ -373,6 +375,8 @@ public class Message {
     private Object _body
     private Map _hdrs = [:]
     private Map _props = [:]
+
+    Object getExchange() { new com.sap.gateway.ip.core.customdev.util.Exchange(this) }
 
     void setBody(Object v) { _body = v }
     Object getBody() { _body }
@@ -393,6 +397,13 @@ public class Message {
     Map getProperties() { _props }
     
     void removeHeader(String n) { _hdrs.remove(n) }
+}
+
+public class Exchange {
+    private Message _msg
+    Exchange(Message m) { _msg = m }
+    Message getIn() { _msg }
+    Message getOut() { _msg }
 }
 """
 
@@ -464,12 +475,23 @@ println "===RESULT_END==="
     
     // 4. Execute the Runner using java and the groovy standalone jars
     const cpSeparator = process.platform === 'win32' ? ';' : ':';
-    const classPath = [
+    let classPath = [
        path.join(__dirname, 'groovy-4.0.15.jar'),
        path.join(__dirname, 'groovy-json-4.0.15.jar'),
        path.join(__dirname, 'groovy-xml-4.0.15.jar'),
        '.'
-    ].join(cpSeparator);
+    ];
+
+    // On Linux (Koyeb), try to use the full Groovy distribution if available
+    if (process.platform !== 'win32') {
+      const groovyLib = '/opt/groovy/lib';
+      if (fs.existsSync(groovyLib)) {
+          // In Java, /path/to/lib/* includes all jars in that directory
+          classPath = [ path.join(groovyLib, '*'), '.' ];
+      }
+    }
+    
+    const classPathStr = classPath.join(cpSeparator);
     
     // Using a consistent lowercase filename for Linux compatibility
     // Optimized: Added -XX:TieredStopAtLevel=1 for faster startup
