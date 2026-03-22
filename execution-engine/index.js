@@ -509,10 +509,19 @@ println "===RESULT_END==="
     if (process.platform !== 'win32') {
       const groovyLib = '/opt/groovy/lib';
       if (fs.existsSync(groovyLib)) {
-          // In Java, /path/to/lib/* includes all jars in that directory. 
-          // We must ensure it's an absolute path.
-          classPath = [ path.resolve(groovyLib, '*'), '.' ];
-          console.log(`Using full distribution classpath: ${classPath[0]}`);
+          try {
+              const files = fs.readdirSync(groovyLib);
+              const libJars = files
+                  .filter(f => f.endsWith('.jar'))
+                  .map(f => path.join(groovyLib, f));
+              
+              if (libJars.length > 0) {
+                  classPath = [ ...libJars, '.' ];
+                  console.log(`Manually built classpath with ${libJars.length} jars.`);
+              }
+          } catch (e) {
+              console.error(`Error building manual classpath: ${e.message}`);
+          }
       }
     }
     
