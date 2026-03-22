@@ -340,7 +340,12 @@ app.get('/api/health', async (req, res) => {
 });
 
 app.post('/api/execute', async (req, res) => {
-  const { script, payload, headers, properties } = req.body;
+  const { 
+    script, 
+    payload = '', 
+    headers = '{}', 
+    properties = '{}' 
+  } = req.body;
 
   if (!script) {
     return res.status(400).json({ error: 'Script is required' });
