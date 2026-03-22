@@ -540,7 +540,7 @@ println "===RESULT_END==="
       '-XX:TieredStopAtLevel=1',
       '-XX:MaxMetaspaceSize=64m', 
       '-Xss256k',
-      '-cp', classPath,
+      '-cp', classPathStr,
       'groovy.ui.GroovyMain',
       'runner.groovy'
     ];
