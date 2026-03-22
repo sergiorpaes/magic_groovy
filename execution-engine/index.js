@@ -364,7 +364,11 @@ public class Message {
 
     void setBody(Object v) { _body = v }
     Object getBody() { _body }
-    Object getBody(Class t) { _body }
+    Object getBody(Class t) {
+        if (t != null && t.getName() == "java.io.Reader") return new java.io.StringReader(_body?.toString() ?: "")
+        if (t != null && t.getName() == "java.io.InputStream") return new java.io.ByteArrayInputStream((_body?.toString() ?: "").getBytes("UTF-8"))
+        return _body 
+    }
     
     void setHeader(String n, Object v) { _hdrs[n] = v }
     Object getHeader(String n) { _hdrs[n] }
