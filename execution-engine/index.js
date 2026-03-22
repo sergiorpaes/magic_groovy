@@ -502,6 +502,21 @@ try {
   inputHeaders.each { k, v -> message.setHeader(k, v) }
   inputProperties.each { k, v -> message.setProperty(k, v) }
 
+  // 5. Setup Mocks in Script Context
+  def messageLogFactory = [
+      getMessageLog: { msg -> 
+          [
+              addCustomHeaderProperty: { k, v -> println "LOG: Custom Header Property $k = $v" },
+              addAttachmentAsString: { name, content, type -> println "LOG: Attachment $name created" },
+              setStringProperty: { k, v -> println "LOG: Log Property $k = $v" }
+          ]
+      }
+  ]
+  def mappingContext = gcl.loadClass("com.sap.it.api.mapping.MappingContext").newInstance()
+  
+  try { scriptInstance.setProperty("messageLogFactory", messageLogFactory) } catch(e) {}
+  try { scriptInstance.setProperty("mappingContext", mappingContext) } catch(e) {}
+
   message = scriptInstance.processData(message)
 } catch (Throwable e) {
     System.out.flush()
