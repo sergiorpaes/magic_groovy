@@ -68,11 +68,22 @@ const TEMP_DIR = path.join(__dirname, 'temp');
 try {
   const { execSync } = require('child_process');
   console.log('Checking Java availability...');
-  execSync('java -version');
-  console.log('Java is available in PATH.');
+  const javaVer = execSync('java -version 2>&1').toString();
+  console.log('Java Version:\n', javaVer);
 } catch (e) {
   console.error('CRITICAL: Java was NOT found in the system PATH.');
 }
+
+// Check Groovy JARs availability
+const jars = ['groovy-4.0.15.jar', 'groovy-json-4.0.15.jar', 'groovy-xml-4.0.15.jar'];
+jars.forEach(jar => {
+  const p = path.join(__dirname, jar);
+  if (fs.existsSync(p)) {
+    console.log(`Found JAR: ${jar}`);
+  } else {
+    console.error(`MISSING JAR: ${jar} at ${p}`);
+  }
+});
 
 // Ensure temp directory exists
 if (!fs.existsSync(TEMP_DIR)) {
@@ -335,6 +346,7 @@ import com.sap.gateway.ip.core.customdev.util.Message
 import groovy.xml.XmlParser
 import groovy.xml.XmlNodePrinter
 import groovy.xml.XmlSlurper
+import groovy.xml.QName
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
 import groovy.json.JsonBuilder
