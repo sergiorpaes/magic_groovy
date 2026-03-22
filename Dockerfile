@@ -1,23 +1,27 @@
 FROM node:20-slim
 
-# Install Java (OpenJDK 17)
+# 1. Install Java (OpenJDK 17)
 RUN apt-get update && \
     apt-get install -y openjdk-17-jre-headless && \
     rm -rf /var/lib/apt/lists/*
 
-# Create app directory
+# 2. Set working directory
 WORKDIR /app
 
-# Copy execution engine files
-# We copy the contents of the execution-engine folder to the root of the /app dir
-COPY execution-engine/package*.json ./
-RUN npm install
-
+# 3. Copy only the backend folder contents to /app
 COPY execution-engine/ ./
 
-# Create temp directory and set permissions
+# 4. Install backend dependencies
+# (Assumes execution-engine/package.json exists)
+RUN npm install --production
+
+# 5. Create temp directory
 RUN mkdir -p temp && chmod 777 temp
 
-# Start the server
+# 6. Expose Koyeb port
 EXPOSE 8000
-CMD ["node", "execution-engine/index.js"]
+
+# 7. Start the server
+# Since we copied everything from execution-engine to /app, 
+# index.js is now in the root of /app
+CMD ["node", "index.js"]

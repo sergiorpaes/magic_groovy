@@ -1,5 +1,0 @@
-[phases.setup]
-nixPkgs = ["nodejs", "openjdk17"]
-
-[start]
-cmd = "node execution-engine/index.js"
