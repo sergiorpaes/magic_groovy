@@ -237,7 +237,7 @@ export default function App() {
           const data = await response.json();
           if (data && data.status === 'ok') {
             setBackendStatus('online');
-            console.log('Heartbeat sent to backend: ONLINE');
+            // console.log('Heartbeat sent to backend: ONLINE');
           } else {
             throw new Error('Invalid health check response');
           }
@@ -247,10 +247,10 @@ export default function App() {
       } catch (e: any) {
         if (e.name === 'TimeoutError' || e.message?.includes('timeout')) {
           setBackendStatus('sleeping');
-          console.warn('Heartbeat: Server is likely SLEEPING (timeout)');
+          // console.warn('Heartbeat: Server is likely SLEEPING (timeout)');
         } else {
           setBackendStatus('offline');
-          console.warn('Heartbeat failed: OFFLINE', e);
+          // console.warn('Heartbeat failed: OFFLINE', e);
         }
       }
     };
@@ -320,7 +320,7 @@ export default function App() {
       }, { signal: abortControllerRef.current.signal });
       
       const text = result.text;
-      console.log("AI Response:", text);
+      // console.log("AI Response:", text);
       
       // 1. Extract the Groovy script
       const isModelRequest = currentPrompt.includes('Analise o script Groovy abaixo e gere um payload') || 
@@ -351,7 +351,7 @@ export default function App() {
         // Take the FIRST payload block found, as it's typically the input example
         const firstPayloadBlock = payloadBlocks[0];
         const extractedPayload = firstPayloadBlock[1].trim();
-        console.log("Extracted Payload:", extractedPayload);
+        // console.log("Extracted Payload:", extractedPayload);
         
         // Update suggested payload whenever provided (initial or update)
         setSuggestedPayload(extractedPayload);
@@ -392,7 +392,7 @@ export default function App() {
       setCredits(prev => prev - 1);
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        console.log("Generation aborted by user");
+        // console.log("Generation aborted by user");
         setMessages(prev => [...prev, { role: 'model', content: lang === 'pt' ? '*Geração interrompida pelo usuário*' : lang === 'es' ? '*Generación interrumpida por el usuario*' : '*Generation stopped by user*' }]);
       } else {
         console.error("Generation failed:", error);
