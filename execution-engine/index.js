@@ -385,22 +385,33 @@ import groovy.json.JsonOutput
 // Use a unified ClassLoader and ensure it sees the parent's URLs
 def gcl = new GroovyClassLoader(this.class.classLoader)
 try {
-    // Explicitly inherit URLs just in case
+    // Diagnostic: Print what the runner sees
+    println "DIAGNOSTIC: Runner ClassLoader: " + this.class.classLoader.getClass().getName()
+    if (this.class.classLoader.respondsTo('getURLs')) {
+        this.class.classLoader.getURLs().each { println "DIAGNOSTIC: CP URL: " + it }
+    }
+
+    // Explicitly inherit URLs
     def parentLoader = this.class.classLoader
     while (parentLoader != null) {
         if (parentLoader.respondsTo('getURLs')) {
-            parentLoader.getURLs().each { url -> gcl.addURL(url) }
+            parentLoader.getURLs().each { url -> 
+                println "DIAGNOSTIC: Inheriting URL: " + url
+                gcl.addURL(url) 
+            }
         }
         parentLoader = parentLoader.getParent()
     }
-} catch(e) {}
+} catch(e) {
+    println "DIAGNOSTIC: Error during inheritance: " + e.message
+}
 
-// Diagnostic: Check if QName is even visible to the runner
+// Diagnostic: Check if QName is even visible
 try {
-    Class.forName("groovy.xml.QName")
+    def qnameClass = Class.forName("groovy.xml.QName")
+    println "DIAGNOSTIC: QName found successfully: " + qnameClass.getName()
 } catch (e) {
-    // We will see this in logs if it fails
-    System.err.println("DIAGNOSTIC: QName CLASS NOT FOUND IN RUNNER")
+    System.err.println("DIAGNOSTIC: QName CLASS NOT FOUND IN RUNNER: " + e.message)
 }
 
 // 1. Define Mock Classes as strings
