@@ -345,7 +345,8 @@ app.post('/api/execute', async (req, res) => {
     script, 
     payload = '', 
     headers = '{}', 
-    properties = '{}' 
+    properties = '{}',
+    functionName = 'processData'
   } = req.body;
 
   if (!script) {
@@ -570,7 +571,7 @@ try {
   try { scriptInstance.setProperty("mappingContext", mappingContext) } catch(e) {}
   try { scriptInstance.setProperty("secureStoreService", secureStoreService) } catch(e) {}
 
-  message = scriptInstance.processData(message)
+  message = scriptInstance."\${functionName}"(message)
 } catch (Throwable e) {
     System.out.flush()
     System.setOut(old)

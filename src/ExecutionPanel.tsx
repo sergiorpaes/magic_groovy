@@ -21,6 +21,8 @@ interface ExecutionPanelProps {
   onFixError?: (errorMessage: string, payload: string) => void;
   onGenerateModel?: (script: string) => void;
   isGeneratingBackground?: boolean;
+  scriptFunction?: string;
+  onScriptFunctionChange?: (val: string) => void;
 }
 
 type TabType = 'payload' | 'headers' | 'properties';
@@ -36,7 +38,9 @@ export function ExecutionPanel({
   suggestedHeaders, 
   suggestedProperties, 
   onFixError, 
-  onGenerateModel 
+  onGenerateModel,
+  scriptFunction = 'processData',
+  onScriptFunctionChange
 }: ExecutionPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>('payload');
   const [inputPayload, setInputPayload] = useState('');
@@ -224,6 +228,17 @@ export function ExecutionPanel({
           )}
           Run Script
         </button>
+
+        <div className="flex items-center gap-2 ml-4 border-l border-vscode-border pl-4">
+          <span className="text-[10px] uppercase font-bold text-vscode-text/40 whitespace-nowrap">Script Function:</span>
+          <input 
+            type="text"
+            value={scriptFunction}
+            onChange={(e) => onScriptFunctionChange?.(e.target.value)}
+            className="bg-[#1e1e1e] border border-vscode-border/50 rounded px-2 py-0.5 text-[11px] text-[#9cdcfe] focus:outline-none focus:border-vscode-blue w-32 font-mono"
+            placeholder="processData"
+          />
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative" style={{ userSelect: (isDraggingHorizontal || isDraggingConsole) ? 'none' : 'auto' }}>

@@ -101,6 +101,7 @@ export default function App() {
   const [scriptName, setScriptName] = useState('GeneratedScript');
   const [isEditingName, setIsEditingName] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+  const [scriptFunction, setScriptFunction] = useState('processData');
   
   // Execution Panel State
   const [isExecuting, setIsExecuting] = useState(false);
@@ -475,6 +476,7 @@ export default function App() {
     setExecutionResult({
       status: 'idle', outputPayload: '', outputHeaders: '', outputProperties: '', logs: ''
     });
+    setScriptFunction('processData');
     setResetKey(prev => prev + 1);
   };
 
@@ -548,6 +550,7 @@ export default function App() {
           payload,
           headers: JSON.stringify(headersObj),
           properties: JSON.stringify(propertiesObj),
+          functionName: scriptFunction
         }),
       });
 
@@ -973,6 +976,8 @@ export default function App() {
                 <ExecutionPanel 
                   key={resetKey}
                   script={generatedCode}
+                  scriptFunction={scriptFunction}
+                  onScriptFunctionChange={setScriptFunction}
                   suggestedPayload={suggestedPayload}
                   suggestedHeaders={suggestedHeaders}
                   suggestedProperties={suggestedProperties}
