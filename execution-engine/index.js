@@ -18,6 +18,13 @@ const transporter = nodemailer.createTransport({
 });
 
 // Database connection (Neon Postgres)
+console.log('DB Config Check:', {
+  hasNetlifyUrl: !!process.env.NETLIFY_DATABASE_URL,
+  hasDbUrl: !!process.env.DATABASE_URL,
+  hasEmailUser: !!process.env.EMAIL_USER,
+  hasEmailPass: !!process.env.EMAIL_PASSWORD
+});
+
 const pool = new Pool({
   connectionString: process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL,
   ssl: {
@@ -206,7 +213,7 @@ app.post('/api/auth/activate', async (req, res) => {
     res.json({ message: 'Account activated successfully!', user: result.rows[0] });
   } catch (err) {
     console.error('Activation error:', err);
-    res.status(500).json({ error: 'Error activating account' });
+    res.status(500).json({ error: 'Error activating account', details: err.message });
   }
 });
 
@@ -246,7 +253,7 @@ app.post('/api/auth/login', async (req, res) => {
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Error logging in' });
+    res.status(500).json({ error: 'Error logging in', details: err.message });
   }
 });
 

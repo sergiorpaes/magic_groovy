@@ -35,7 +35,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
         body: JSON.stringify({ email, password })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
+      if (!res.ok) throw new Error(data.details ? `${data.error}: ${data.details}` : (data.error || 'Login failed'));
       onLogin(data.user);
     } catch (err: any) {
       setError(err.message);
@@ -55,7 +55,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
         body: JSON.stringify({ name, email, password })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Registration failed');
+      if (!res.ok) throw new Error(data.details ? `${data.error}: ${data.details}` : (data.error || 'Registration failed'));
       setMode('activate');
       setMessage(t.registrationSuccess);
     } catch (err: any) {
@@ -76,7 +76,7 @@ export const AuthPortal: React.FC<AuthPortalProps> = ({ onLogin, apiBaseUrl, onC
         body: JSON.stringify({ email, code })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Activation failed');
+      if (!res.ok) throw new Error(data.details ? `${data.error}: ${data.details}` : (data.error || 'Activation failed'));
       setMode('login');
       setMessage(t.activationSuccess);
     } catch (err: any) {

@@ -133,7 +133,7 @@ export const translations = {
       passwordLabel: "Senha",
       nameLabel: "Nome completo",
       codeLabel: "Código de Ativação",
-      namePlaceholder: "seu@email.com",
+      emailPlaceholder: "seu@email.com",
       passwordPlaceholder: "••••••••",
       namePlaceholderText: "Seu nome",
       codePlaceholder: "123456",
