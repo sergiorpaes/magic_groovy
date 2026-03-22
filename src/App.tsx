@@ -92,6 +92,7 @@ export default function App() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [scriptName, setScriptName] = useState('GeneratedScript');
   const [isEditingName, setIsEditingName] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
   
   // Execution Panel State
   const [isExecuting, setIsExecuting] = useState(false);
@@ -466,6 +467,7 @@ export default function App() {
     setExecutionResult({
       status: 'idle', outputPayload: '', outputHeaders: '', outputProperties: '', logs: ''
     });
+    setResetKey(prev => prev + 1);
   };
 
   const copyToClipboard = () => {
@@ -961,6 +963,7 @@ export default function App() {
               style={{ minHeight: '100px' }}
             >
                 <ExecutionPanel 
+                  key={resetKey}
                   script={generatedCode}
                   suggestedPayload={suggestedPayload}
                   suggestedHeaders={suggestedHeaders}
