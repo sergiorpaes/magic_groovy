@@ -20,10 +20,11 @@ import {
   Terminal,
   Sparkles,
   Wand2,
-  Globe,
-  MessageSquare,
-  Brain,
-  LogOut
+  Globe, 
+  MessageSquare, 
+  Brain, 
+  LogOut,
+  Plus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import beautify from 'js-beautify';
@@ -707,12 +708,15 @@ export default function App() {
         
         <div className="flex items-center gap-6">
           <LanguageSwitcher />
-          <button 
+          <motion.button 
+            whileHover={{ scale: 1.02, y: -1 }}
+            whileTap={{ scale: 0.98, y: 0 }}
             onClick={resetConversation}
-            className="text-sm text-vscode-text/60 hover:text-vscode-blue transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 bg-vscode-bg border border-vscode-border hover:border-vscode-blue/40 rounded-md text-[11px] font-bold uppercase tracking-wider text-vscode-text/60 hover:text-vscode-blue transition-all shadow-sm group"
           >
+            <Plus className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-300" />
             {t.dashboard.newScript}
-          </button>
+          </motion.button>
           <div className="flex items-center gap-4 px-3 py-1 bg-vscode-bg rounded border border-vscode-border">
             <div className="flex items-center gap-1.5" title={`Engine Status: ${backendStatus.toUpperCase()}`}>
               <div className={`w-2 h-2 rounded-full ${

@@ -229,13 +229,13 @@ export function ExecutionPanel({
           Run Script
         </button>
 
-        <div className="flex items-center gap-2 ml-4 border-l border-vscode-border pl-4">
-          <span className="text-[10px] uppercase font-bold text-vscode-text/40 whitespace-nowrap">Script Function:</span>
+        <div className="flex items-center gap-2 ml-4 border-l border-vscode-border/50 pl-4 group/fn">
+          <span className="text-[10px] uppercase font-bold text-vscode-text/30 whitespace-nowrap group-hover/fn:text-vscode-blue/50 transition-colors">Script Function:</span>
           <input 
             type="text"
             value={scriptFunction}
             onChange={(e) => onScriptFunctionChange?.(e.target.value)}
-            className="bg-[#1e1e1e] border border-vscode-border/50 rounded px-2 py-0.5 text-[11px] text-[#9cdcfe] focus:outline-none focus:border-vscode-blue w-32 font-mono"
+            className="bg-[#1a1a1a] border border-vscode-border/40 rounded px-2 py-0.5 text-[11px] text-[#9cdcfe] focus:outline-none focus:border-vscode-blue/50 focus:ring-1 focus:ring-vscode-blue/20 w-32 font-mono transition-all hover:border-vscode-border/70"
             placeholder="processData"
           />
         </div>
