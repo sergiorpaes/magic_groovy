@@ -91,7 +91,8 @@ if (fs.existsSync(optLib)) {
         const files = fs.readdirSync(optLib);
         console.log(`Found /opt/groovy/lib with ${files.length} items.`);
         const coreJar = files.find(f => f.startsWith('groovy-4') && f.endsWith('.jar'));
-        console.log(`Core Groovy JAR in /opt/groovy/lib: ${coreJar || 'NOT FOUND'}`);
+        const xmlJar = files.find(f => f.startsWith('groovy-xml') && f.endsWith('.jar'));
+        console.log(`Core JAR: ${coreJar || 'NONE'}, XML JAR: ${xmlJar || 'NONE'}`);
     } catch (e) {
         console.error(`Error reading /opt/groovy/lib: ${e.message}`);
     }
@@ -519,7 +520,9 @@ println "===RESULT_END==="
             if (fs.existsSync(dir) && fs.lstatSync(dir).isDirectory()) {
                 const files = fs.readdirSync(dir);
                 files.filter(f => f.endsWith('.jar')).forEach(f => {
-                    finalClassPath.push(path.join(dir, f));
+                    const jarPath = path.join(dir, f);
+                    finalClassPath.push(jarPath);
+                    if (f.includes('xml')) console.log(`Added XML JAR to classpath: ${f}`);
                 });
             }
         } catch (e) {
