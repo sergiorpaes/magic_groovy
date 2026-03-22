@@ -18,8 +18,6 @@ COPY execution-engine/ ./
 # Create temp directory and set permissions
 RUN mkdir -p temp && chmod 777 temp
 
-# The application listens on port 8000 by default (aligned with Koyeb)
+# Start the server
 EXPOSE 8000
-
-# Start the server with Node.js memory limit for Koyeb Nano
-CMD ["node", "--max-old-space-size=128", "index.js"]
+CMD ["node", "execution-engine/index.js"]

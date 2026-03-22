@@ -1,8 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "jdk17"]
-
-[phases.build]
-cmds = ["npm install", "npm run build"]
+nixPkgs = ["nodejs", "openjdk17"]
 
 [start]
 cmd = "node execution-engine/index.js"
