@@ -59,7 +59,15 @@ Diretrizes Técnicas Críticas:
 Instruções de Saída:
 - Se houver dúvidas, use a metodologia C.O.A.C.H. para fazer até 3 perguntas de esclarecimento (Contexto, Objetivo, Arquitetura, Constraints, Handoff). NÃO forneça código groovy se fizer perguntas.
 - Sempre forneça um payload de exemplo (XML ou JSON) compatível.
-- Se o script depende de ler Headers ou Properties, forneça os blocos 'json-headers' e 'json-properties'.
+- Se o script utilizar Headers ou Properties (ex: message.getHeaders()), você DEVE OBRIGATORIAMENTE fornecer blocos de exemplo usando as tags específicas 'json-headers' e 'json-properties' no formato JSON, para que a ferramenta possa auto-popular o painel de testes.
+
+Exemplo de saída para headers/properties:
+\`\`\`json-headers
+{ "codigo": "123" }
+\`\`\`
+\`\`\`json-properties
+{ "ambiente": "prod" }
+\`\`\`
 
 Imports padrão obrigatórios:
 import com.sap.gateway.ip.core.customdev.util.Message
