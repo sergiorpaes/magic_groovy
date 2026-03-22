@@ -88,7 +88,7 @@ export default function App() {
   const [suggestedProperties, setSuggestedProperties] = useState<{key: string, value: string}[] | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingBackground, setIsGeneratingBackground] = useState(false);
-  const [credits, setCredits] = useState(15);
+  const [credits, setCredits] = useState(999);
   const [copySuccess, setCopySuccess] = useState(false);
   const [scriptName, setScriptName] = useState('GeneratedScript');
   const [isEditingName, setIsEditingName] = useState(false);
@@ -128,6 +128,7 @@ export default function App() {
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('magic_user');
+    setView('landing');
   };
 
   // Resize Handlers for the Workspace
