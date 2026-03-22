@@ -469,10 +469,14 @@ println "===RESULT_END==="
     
     child.on('error', (err) => {
       console.error('Spawn error:', err);
-      res.json({ status: 'error', errorMessage: 'Failed to start Java process: ' + err.message });
+      if (!res.headersSent) {
+        res.status(500).json({ status: 'error', errorMessage: 'Failed to start Java process: ' + err.message });
+      }
     });
 
     child.on('close', (code) => {
+      if (res.headersSent) return;
+      
       console.log(`Java process exited with code ${code}`);
       if (stdout) console.log('STDOUT:', stdout);
       if (stderr) console.error('STDERR:', stderr);
