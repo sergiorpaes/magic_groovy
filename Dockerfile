@@ -8,7 +8,7 @@ RUN apt-get update && \
 # 2. Download and install Groovy 4.0.15
 RUN wget https://archive.apache.org/dist/groovy/4.0.15/distribution/apache-groovy-binary-4.0.15.zip && \
     unzip apache-groovy-binary-4.0.15.zip && \
-    mv groovy-4.0.15 /opt/groovy && \
+    mv groovy-* /opt/groovy && \
     rm apache-groovy-binary-4.0.15.zip
 
 # 3. Set working directory

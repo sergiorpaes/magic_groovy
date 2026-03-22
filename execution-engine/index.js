@@ -496,36 +496,36 @@ println "===RESULT_END==="
     const runnerPath = path.join(executionDir, 'runner.groovy');
     fs.writeFileSync(runnerPath, runnerScript);
     
-    // 4. Execute the Runner using java and the groovy standalone jars
+    // 4. Execute the Runner using java with a merged classpath
     const cpSeparator = process.platform === 'win32' ? ';' : ':';
-    let classPath = [
-       path.join(__dirname, 'groovy-4.0.15.jar'),
-       path.join(__dirname, 'groovy-json-4.0.15.jar'),
-       path.join(__dirname, 'groovy-xml-4.0.15.jar'),
-       '.'
-    ];
-
-    // On Linux (Koyeb), try to use the full Groovy distribution if available
+    let classPathDirs = [ __dirname ]; 
+    
     if (process.platform !== 'win32') {
-      const groovyLib = '/opt/groovy/lib';
-      if (fs.existsSync(groovyLib)) {
-          try {
-              const files = fs.readdirSync(groovyLib);
-              const libJars = files
-                  .filter(f => f.endsWith('.jar'))
-                  .map(f => path.join(groovyLib, f));
-              
-              if (libJars.length > 0) {
-                  classPath = [ ...libJars, '.' ];
-                  console.log(`Manually built classpath with ${libJars.length} jars.`);
-              }
-          } catch (e) {
-              console.error(`Error building manual classpath: ${e.message}`);
-          }
-      }
+        const groovyLib = '/opt/groovy/lib';
+        if (fs.existsSync(groovyLib)) {
+            classPathDirs.push(groovyLib);
+        }
     }
     
-    const classPathStr = classPath.join(cpSeparator);
+    // Build explicit classpath with all jars found
+    let finalClassPath = [];
+    classPathDirs.forEach(dir => {
+        try {
+            if (fs.existsSync(dir) && fs.lstatSync(dir).isDirectory()) {
+                const files = fs.readdirSync(dir);
+                files.filter(f => f.endsWith('.jar')).forEach(f => {
+                    finalClassPath.push(path.join(dir, f));
+                });
+            }
+        } catch (e) {
+            // Silently ignore or log minimally
+        }
+    });
+    
+    // Always add current directory for the script and runner
+    finalClassPath.push('.');
+    
+    const classPathStr = finalClassPath.join(cpSeparator);
     
     // Using a consistent lowercase filename for Linux compatibility
     // Optimized: Added -XX:TieredStopAtLevel=1 for faster startup
