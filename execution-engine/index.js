@@ -571,7 +571,7 @@ try {
   try { scriptInstance.setProperty("mappingContext", mappingContext) } catch(e) {}
   try { scriptInstance.setProperty("secureStoreService", secureStoreService) } catch(e) {}
 
-  message = scriptInstance."\${functionName}"(message)
+  message = scriptInstance."${functionName}"(message)
 } catch (Throwable e) {
     System.out.flush()
     System.setOut(old)
