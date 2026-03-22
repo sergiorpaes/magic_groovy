@@ -382,8 +382,26 @@ import java.net.*
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
 
-// Use a unified ClassLoader
+// Use a unified ClassLoader and ensure it sees the parent's URLs
 def gcl = new GroovyClassLoader(this.class.classLoader)
+try {
+    // Explicitly inherit URLs just in case
+    def parentLoader = this.class.classLoader
+    while (parentLoader != null) {
+        if (parentLoader.respondsTo('getURLs')) {
+            parentLoader.getURLs().each { url -> gcl.addURL(url) }
+        }
+        parentLoader = parentLoader.getParent()
+    }
+} catch(e) {}
+
+// Diagnostic: Check if QName is even visible to the runner
+try {
+    Class.forName("groovy.xml.QName")
+} catch (e) {
+    // We will see this in logs if it fails
+    System.err.println("DIAGNOSTIC: QName CLASS NOT FOUND IN RUNNER")
+}
 
 // 1. Define Mock Classes as strings
 def messageSource = """
