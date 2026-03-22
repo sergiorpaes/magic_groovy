@@ -364,6 +364,11 @@ app.post('/api/execute', async (req, res) => {
     const injectedImports = `
 import com.sap.gateway.ip.core.customdev.util.Message
 import com.sap.gateway.ip.core.customdev.util.Exchange
+import com.sap.it.api.securestore.*
+import com.sap.it.api.keystore.*
+import com.sap.it.api.pd.*
+import com.sap.it.api.mapping.*
+import com.sap.it.api.itk.*
 import groovy.xml.*
 import groovy.util.*
 import groovy.json.*
@@ -470,11 +475,57 @@ public class MappingContext {
     public String getHeader(String name) { return "" }
     public String getProperty(String name) { return "" }
 }
+public class ValueMapping {
+    public static String get(String srcAgency, String srcSchema, String srcValue, String tgtAgency, String tgtSchema) {
+        return "MOCK_VALUE"
+    }
+}
+"""
+
+def secureSource = """
+package com.sap.it.api.securestore
+public interface UserCredential {
+    String getUsername()
+    char[] getPassword()
+}
+public interface SecureStoreService {
+    UserCredential getUserCredential(String name)
+}
+public class SecureStoreServiceFactory {
+    public static SecureStoreService getSecureStoreService() {
+        return [
+            getUserCredential: { name -> 
+                [
+                    getUsername: { "MOCK_USER" },
+                    getPassword: { "MOCK_PASSWORD".toCharArray() }
+                ] as UserCredential
+            }
+        ] as SecureStoreService
+    }
+}
+"""
+
+def keystoreSource = """
+package com.sap.it.api.keystore
+public interface KeystoreService {
+    Object getCertificate(String alias)
+    Object getKey(String alias, char[] password)
+}
+"""
+
+def pdSource = """
+package com.sap.it.api.pd
+public class ConfigurationPropertyRetriever {
+    public static Object getConfigurationProperty(String key) { return "MOCK_VALUE" }
+}
 """
 
 gcl.parseClass(messageSource)
 gcl.parseClass(mappingSource)
 gcl.parseClass(itkSource)
+gcl.parseClass(secureSource)
+gcl.parseClass(keystoreSource)
+gcl.parseClass(pdSource)
 
 def baos = new ByteArrayOutputStream()
 def ps = new PrintStream(baos)
@@ -513,9 +564,11 @@ try {
       }
   ]
   def mappingContext = gcl.loadClass("com.sap.it.api.mapping.MappingContext").newInstance()
+  def secureStoreService = gcl.loadClass("com.sap.it.api.securestore.SecureStoreServiceFactory").getSecureStoreService()
   
   try { scriptInstance.setProperty("messageLogFactory", messageLogFactory) } catch(e) {}
   try { scriptInstance.setProperty("mappingContext", mappingContext) } catch(e) {}
+  try { scriptInstance.setProperty("secureStoreService", secureStoreService) } catch(e) {}
 
   message = scriptInstance.processData(message)
 } catch (Throwable e) {
