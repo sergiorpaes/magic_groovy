@@ -407,6 +407,14 @@ public class Exchange {
 }
 """
 
+def itkSource = """
+package com.sap.it.api.itk
+public class ITKException extends RuntimeException {
+    public ITKException(String message) { super(message) }
+    public ITKException(Throwable cause) { super(cause) }
+}
+"""
+
 def mappingSource = """
 package com.sap.it.api.mapping
 public class MappingContext {
@@ -417,6 +425,7 @@ public class MappingContext {
 
 gcl.parseClass(messageSource)
 gcl.parseClass(mappingSource)
+gcl.parseClass(itkSource)
 
 def baos = new ByteArrayOutputStream()
 def ps = new PrintStream(baos)
