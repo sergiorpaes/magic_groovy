@@ -81,9 +81,23 @@ jars.forEach(jar => {
   if (fs.existsSync(p)) {
     console.log(`Found JAR: ${jar}`);
   } else {
-    console.error(`MISSING JAR: ${jar} at ${p}`);
+    console.warn(`Local JAR not found: ${jar} (might be using /opt/groovy/lib/)`);
   }
 });
+
+const optLib = '/opt/groovy/lib';
+if (fs.existsSync(optLib)) {
+    try {
+        const files = fs.readdirSync(optLib);
+        console.log(`Found /opt/groovy/lib with ${files.length} items.`);
+        const coreJar = files.find(f => f.startsWith('groovy-4') && f.endsWith('.jar'));
+        console.log(`Core Groovy JAR in /opt/groovy/lib: ${coreJar || 'NOT FOUND'}`);
+    } catch (e) {
+        console.error(`Error reading /opt/groovy/lib: ${e.message}`);
+    }
+} else if (process.platform !== 'win32') {
+    console.warn('WARNING: /opt/groovy/lib was NOT found on Linux.');
+}
 
 // Ensure temp directory exists
 if (!fs.existsSync(TEMP_DIR)) {
@@ -495,8 +509,10 @@ println "===RESULT_END==="
     if (process.platform !== 'win32') {
       const groovyLib = '/opt/groovy/lib';
       if (fs.existsSync(groovyLib)) {
-          // In Java, /path/to/lib/* includes all jars in that directory
-          classPath = [ path.join(groovyLib, '*'), '.' ];
+          // In Java, /path/to/lib/* includes all jars in that directory. 
+          // We must ensure it's an absolute path.
+          classPath = [ path.resolve(groovyLib, '*'), '.' ];
+          console.log(`Using full distribution classpath: ${classPath[0]}`);
       }
     }
     
